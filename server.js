@@ -6,18 +6,24 @@ const puppeteer = require('puppeteer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json()); // to accept JSON request body
+app.use(express.json()); // Accept JSON bodies
+app.use('/invoices', express.static(path.join(__dirname, 'invoices'))); // Serve saved PDFs
 
-// Generate invoice endpoint
+// POST endpoint to generate invoice
 app.post('/generate-invoice', async (req, res) => {
   try {
-    // OPTIONAL: Pull customer/order data from req.body
     const { customer, items, invoiceNumber, paymentMethod } = req.body;
+
+    if (!customer || !items || !invoiceNumber || !paymentMethod) {
+      return res.status(400).json({ error: 'Missing required invoice data.' });
+    }
 
     const logoPath = path.join(__dirname, 'invoices', 'pecto-logo.png');
     const logoBase64 = fs.readFileSync(logoPath).toString('base64');
 
-    // Generate HTML
+    const total = items.reduce((sum, item) => sum + item.total, 0).toFixed(2);
+
+    // HTML content
     const html = `
       <html>
       <head>
@@ -68,15 +74,15 @@ app.post('/generate-invoice', async (req, res) => {
             <tr>
               <td>${item.name}</td>
               <td>${item.quantity}</td>
-              <td>€${item.unitPrice}</td>
-              <td>€${item.total}</td>
+              <td>€${Number(item.unitPrice).toFixed(2)}</td>
+              <td>€${Number(item.total).toFixed(2)}</td>
             </tr>`).join('')}
         </table>
 
         <div class="total">
-          Zwischensumme: €${items.reduce((sum, i) => sum + i.total, 0).toFixed(2)}<br />
+          Zwischensumme: €${total}<br />
           MwSt (0%): €0,00<br />
-          <strong>Gesamtbetrag: €${items.reduce((sum, i) => sum + i.total, 0).toFixed(2)}</strong>
+          <strong>Gesamtbetrag: €${total}</strong>
         </div>
 
         <div class="footer">
@@ -94,15 +100,12 @@ app.post('/generate-invoice', async (req, res) => {
     const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
     await browser.close();
 
-    // Save PDF file
-    const invoicePath = path.join(__dirname, 'invoices', `invoice-${invoiceNumber}.pdf`);
+    const invoiceFileName = `invoice-${invoiceNumber}.pdf`;
+    const invoicePath = path.join(__dirname, 'invoices', invoiceFileName);
     fs.writeFileSync(invoicePath, pdfBuffer);
 
-    // Send PDF back to user (or in real world: email or return path)
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename=invoice-${invoiceNumber}.pdf`
-    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=${invoiceFileName}`);
     res.send(pdfBuffer);
 
   } catch (err) {
@@ -111,10 +114,12 @@ app.post('/generate-invoice', async (req, res) => {
   }
 });
 
+// Health check
 app.get('/', (req, res) => {
-  res.send('PECTO Invoice Server läuft ✅');
+  res.send('✅ PECTO Invoice Server läuft');
 });
 
+// Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server läuft auf http://localhost:${PORT}`);
 });
