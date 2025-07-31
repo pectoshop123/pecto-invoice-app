@@ -93,13 +93,12 @@ app.post('/generate-invoice', async (req, res) => {
       </html>
     `;
 
-   const browser = await puppeteer.launch({
-  headless: true,
-  args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
-});
-
-
+    // ✅ FIX: Puppeteer launch setup for Render.com
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
+    });
 
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'load' });
