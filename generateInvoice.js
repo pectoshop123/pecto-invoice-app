@@ -10,66 +10,87 @@ function generateInvoice(orderData) {
     outputDir,
     `invoice-${orderData.invoiceNumber}.pdf`
   );
-  const doc = new PDFDocument({ margin: 40, size: 'A4' });
+  const doc = new PDFDocument({ margin: 0, size: 'A4' });
   const stream = fs.createWriteStream(filePath);
   doc.pipe(stream);
 
-  //––– Logo & Header
+  const pageWidth = doc.page.width;
+  const padding = 50;
+
+  //––– Logo & Company Info
   const logoPath = path.join(outputDir, 'pecto-logo.png');
+  let logoHeight = 70;
   if (fs.existsSync(logoPath)) {
-    doc.image(logoPath, 40, 40, { width: 100 });
+    doc.image(logoPath, padding, padding, { height: logoHeight });
   }
-  doc
-    .fontSize(20)
-    .fillColor('#FD6506')
-    .text('Rechnung', 450, 50, { align: 'right' });
 
-  //––– Company Info
   doc
-    .fontSize(10)
+    .fontSize(16)
     .fillColor('#2B4455')
-    .text('PECTO e.U.', 450, 80, { align: 'right' })
-    .text('info@pecto.at', { align: 'right' })
-    .text('In der Wiesen 13/1/16', { align: 'right' })
-    .text('1230 Wien', { align: 'right' })
-    .moveDown();
+    .text('PECTO e.U.', pageWidth - padding - 150, padding)
+    .text('info@pecto.at', pageWidth - padding - 150, padding + 20)
+    .text('In der Wiesen 13/1/16', pageWidth - padding - 150, padding + 40)
+    .text('1230 Wien', pageWidth - padding - 150, padding + 60);
 
-  //––– Customer & Meta
+  //––– Title
   doc
-    .fontSize(12)
-    .fillColor('#333')
-    .text(`Kunde:\n${orderData.customer.name}\n${orderData.customer.address}\n${orderData.customer.zip} ${orderData.customer.city}`, 40, 150)
-    .text(
-      `Rechnungsnummer: ${orderData.invoiceNumber}\nDatum: ${new Date().toLocaleDateString('de-DE')}\nZahlungsart: ${orderData.paymentMethod}`,
-      350,
-      150
-    )
-    .moveDown(2);
+    .fontSize(24)
+    .fillColor('#FD6506')
+    .text('Rechnung', padding, padding + logoHeight + 20);
 
-  //––– Table Header
-  const tableTop = 240;
+  //––– Customer & Invoice Meta (Grid-like)
+  const infoTop = padding + logoHeight + 60;
   doc
+    .fontSize(13)
+    .fillColor('#FD6506')
+    .text('Kunde:', padding, infoTop)
+    .fillColor('#333333')
+    .text(orderData.customer.name, padding, infoTop + 20)
+    .text(orderData.customer.address, padding, infoTop + 40)
+    .text(`${orderData.customer.zip} ${orderData.customer.city}`, padding, infoTop + 60);
+
+  doc
+    .fillColor('#FD6506')
+    .text('Rechnungsdetails:', pageWidth / 2, infoTop)
+    .fillColor('#333333')
+    .text(`Rechnungsnummer: ${orderData.invoiceNumber}`, pageWidth / 2, infoTop + 20)
+    .text(`Datum: ${new Date().toLocaleDateString('de-DE')}`, pageWidth / 2, infoTop + 40)
+    .text(`Zahlungsart: ${orderData.paymentMethod}`, pageWidth / 2, infoTop + 60);
+
+  //––– Table
+  const tableTop = infoTop + 100;
+  const colWidths = [250, 70, 100, 100];
+  const colPositions = [padding, padding + colWidths[0], padding + colWidths[0] + colWidths[1], padding + colWidths[0] + colWidths[1] + colWidths[2]];
+
+  // Header
+  doc
+    .fillColor('#FD6506')
+    .rect(padding - 10, tableTop - 5, pageWidth - padding * 2 + 20, 25)
+    .fill();
+  doc
+    .fillColor('white')
     .fontSize(10)
-    .fillColor('white')
-    .rect(40, tableTop, 515, 20)
-    .fill('#FD6506');
-  doc
-    .fillColor('white')
-    .text('Produkt', 45, tableTop + 5)
-    .text('Anzahl', 260, tableTop + 5)
-    .text('Einzelpreis', 330, tableTop + 5)
-    .text('Gesamt', 430, tableTop + 5);
+    .text('Produkt', colPositions[0], tableTop)
+    .text('Anzahl', colPositions[1], tableTop)
+    .text('Einzelpreis', colPositions[2], tableTop)
+    .text('Gesamt', colPositions[3], tableTop);
 
-  //––– Table Rows
-  let y = tableTop + 25;
-  doc.fillColor('#333').fontSize(10);
+  // Rows
+  let y = tableTop + 30;
+  doc.fillColor('#333333');
   orderData.items.forEach(item => {
     doc
-      .text(item.name, 45, y)
-      .text(item.quantity.toString(), 260, y)
-      .text(`€${item.unitPrice.toFixed(2)}`, 330, y)
-      .text(`€${item.total.toFixed(2)}`, 430, y);
-    y += 20;
+      .text(item.name, colPositions[0], y)
+      .text(item.quantity.toString(), colPositions[1], y)
+      .text(`€${item.unitPrice.toFixed(2)}`, colPositions[2], y)
+      .text(`€${item.total.toFixed(2)}`, colPositions[3], y);
+    // Bottom border
+    doc
+      .moveTo(padding - 10, y + 20)
+      .lineTo(pageWidth - padding + 10, y + 20)
+      .lineWidth(1)
+      .stroke('#e0e0e0');
+    y += 30;
   });
 
   //––– Totals
@@ -78,28 +99,32 @@ function generateInvoice(orderData) {
   const discount = orderData.discountAmount || 0;
   const grandTotal = subtotal + shipping - discount;
 
-  y += 20;
+  y += 10;
   doc
     .fontSize(10)
-    .text(`Zwischensumme: €${subtotal.toFixed(2)}`, 350, y)
-    .text(`Versandkosten: €${shipping.toFixed(2)}`, 350, y + 15);
+    .fillColor('#333333')
+    .text(`Zwischensumme: €${subtotal.toFixed(2)}`, colPositions[2], y)
+    .text(`Versandkosten: €${shipping.toFixed(2)}`, colPositions[2], y + 15)
   if (discount > 0) {
-    doc.text(`Rabatt: -€${discount.toFixed(2)}`, 350, y + 30);
+    doc.text(`Rabatt: -€${discount.toFixed(2)}`, colPositions[2], y + 30);
+    y += 15;
   }
   doc
+    .text(`MwSt (0%): €0.00`, colPositions[2], y + 30)
+    .fillColor('#FD6506')
     .font('Helvetica-Bold')
-    .text(`Gesamtbetrag: €${grandTotal.toFixed(2)}`, 350, y + 45);
+    .text(`Gesamtbetrag: €${grandTotal.toFixed(2)}`, colPositions[2], y + 45);
 
   //––– Footer
   doc
     .font('Helvetica')
     .fontSize(8)
-    .fillColor('#777')
+    .fillColor('#777777')
     .text(
       '*Gemäß § 6 Abs. 1 Z 27 UStG steuerfrei – Kleinunternehmerregelung • www.pecto.at • info@pecto.at',
-      40,
-      780,
-      { width: 515, align: 'center' }
+      padding,
+      doc.page.height - 50,
+      { width: pageWidth - padding * 2, align: 'center' }
     );
 
   doc.end();
