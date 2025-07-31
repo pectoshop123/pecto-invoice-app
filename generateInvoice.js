@@ -13,47 +13,37 @@ function generateInvoice(orderData) {
 
   const pageWidth = doc.page.width;
   const pageHeight = doc.page.height;
-  const padding = 20; // Premium spacing
+  const padding = 28; // Approximate 10mm (since 1mm ≈ 2.834pt)
 
-  //––– Logo & Company Info (More Elegant Design)
+  //––– Logo & Company Info
   const logoPath = path.join(outputDir, 'pecto-logo.png');
-  let logoHeight = 50;
+  let logoHeight = 70;
   if (fs.existsSync(logoPath)) {
     doc.image(logoPath, padding, padding, { height: logoHeight });
   }
 
-  const companyInfoX = pageWidth - padding - 180;
-  doc
-    .fontSize(10) // Reduced for beauty
-    .fillColor('#2B4455')
-    .font('Helvetica')
-    .text('PECTO e.U.', companyInfoX, padding + 5, { width: 160, align: 'right' })
-    .text('info@pecto.at', companyInfoX, padding + 25, { width: 160, align: 'right' }) // Increased spacing
-    .text('In der Wiesen 13/1/16', companyInfoX, padding + 40, { width: 160, align: 'right' })
-    .text('1230 Wien', companyInfoX, padding + 55, { width: 160, align: 'right' });
-
-  //––– Title (Subtle Medium Gray, Regular Weight)
-  doc
-    .fontSize(26)
-    .fillColor('#333333') // Medium gray for elegance
-    .font('Helvetica') // Regular weight, not bold
-    .text('Rechnung', padding, padding + logoHeight + 20);
-
-  //––– Header Line with Gold Accent for Billion-Dollar Touch
-  doc
-    .moveTo(padding, padding + logoHeight + 60)
-    .lineTo(pageWidth - padding, padding + logoHeight + 60)
-    .lineWidth(1)
-    .stroke('#FFD700');
-
-  //––– Customer & Invoice Meta (Balanced Grid)
-  const infoTop = padding + logoHeight + 80;
+  const companyInfoX = pageWidth - padding - 200;
   doc
     .fontSize(12)
+    .fillColor('#2B4455')
+    .text('PECTO e.U.', companyInfoX, padding + 5, { align: 'right' })
+    .text('info@pecto.at', companyInfoX, padding + 20, { align: 'right' })
+    .text('In der Wiesen 13/1/16', companyInfoX, padding + 35, { align: 'right' })
+    .text('1230 Wien', companyInfoX, padding + 50, { align: 'right' });
+
+  //––– Title
+  doc
+    .fontSize(24)
+    .fillColor('#FD6506')
+    .text('Rechnung', padding, padding + logoHeight + 20);
+
+  //––– Info Grid
+  const infoTop = padding + logoHeight + 60;
+  doc
+    .fontSize(13)
     .fillColor('#FD6506')
     .text('Kunde:', padding, infoTop)
     .fillColor('#333333')
-    .fontSize(11)
     .text(orderData.customer.name, padding, infoTop + 15)
     .text(orderData.customer.address, padding, infoTop + 30)
     .text(`${orderData.customer.zip} ${orderData.customer.city}`, padding, infoTop + 45);
@@ -66,50 +56,46 @@ function generateInvoice(orderData) {
     .text(`Datum: ${new Date().toLocaleDateString('de-DE')}`, pageWidth / 2, infoTop + 30)
     .text(`Zahlungsart: ${orderData.paymentMethod}`, pageWidth / 2, infoTop + 45);
 
-  //––– Table (Fixed Alignment for Products)
+  //––– Table
   const tableTop = infoTop + 70;
-  const colWidths = [350, 80, 110, 110]; // Widened product column to 350px
+  const colWidths = [250, 80, 100, 100];
   const colPositions = [padding, padding + colWidths[0], padding + colWidths[0] + colWidths[1], padding + colWidths[0] + colWidths[1] + colWidths[2]];
 
-  // Header
+  // Header Background
   doc
     .fillColor('#FD6506')
     .rect(padding, tableTop - 5, pageWidth - padding * 2, 25)
     .fill();
   doc
     .fillColor('white')
-    .fontSize(11)
-    .font('Helvetica-Bold')
-    .text('Produkt', colPositions[0] + 5, tableTop + 2, { width: colWidths[0] - 10, align: 'left' })
-    .text('Anzahl', colPositions[1] + 5, tableTop + 2, { width: colWidths[1] - 10, align: 'center' })
-    .text('Einzelpreis', colPositions[2] + 5, tableTop + 2, { width: colWidths[2] - 10, align: 'right' })
-    .text('Gesamt', colPositions[3] + 5, tableTop + 2, { width: colWidths[3] - 10, align: 'right' });
+    .fontSize(12)
+    .text('Produkt', colPositions[0] + 5, tableTop)
+    .text('Anzahl', colPositions[1] + 5, tableTop, { align: 'center' })
+    .text('Einzelpreis', colPositions[2] + 5, tableTop, { align: 'right' })
+    .text('Gesamt', colPositions[3] + 5, tableTop, { align: 'right' });
 
-  // Rows with Improved Alignment
+  // Rows
   let y = tableTop + 25;
-  doc.fillColor('#333333').fontSize(11).font('Helvetica');
+  doc.fillColor('#333333').fontSize(11);
   orderData.items.forEach((item, index) => {
     const rowFill = index % 2 === 0 ? '#f8fafc' : '#ffffff';
     doc
       .rect(padding, y - 5, pageWidth - padding * 2, 25)
       .fill(rowFill);
-    // Product with wrapping and padding
     doc
-      .text(item.name, colPositions[0] + 5, y, { width: colWidths[0] - 15, align: 'left', lineBreak: true, lineGap: 3 })
-      .text(item.quantity.toString(), colPositions[1] + 5, y, { width: colWidths[1] - 10, align: 'center' })
-      .text(`€${item.unitPrice.toFixed(2)}`, colPositions[2] + 5, y, { width: colWidths[2] - 10, align: 'right' })
-      .text(`€${item.total.toFixed(2)}`, colPositions[3] + 5, y, { width: colWidths[3] - 10, align: 'right' });
-    if (index < orderData.items.length - 1) {
-      doc
-        .moveTo(padding, y + 20)
-        .lineTo(pageWidth - padding, y + 20)
-        .lineWidth(0.5)
-        .stroke('#e0e0e0');
-    }
-    y += 25; // Consistent row height
+      .text(item.name, colPositions[0] + 5, y)
+      .text(item.quantity.toString(), colPositions[1] + 5, y, { align: 'center' })
+      .text(`€${item.unitPrice.toFixed(2)}`, colPositions[2] + 5, y, { align: 'right' })
+      .text(`€${item.total.toFixed(2)}`, colPositions[3] + 5, y, { align: 'right' });
+    doc
+      .moveTo(padding, y + 20)
+      .lineTo(pageWidth - padding, y + 20)
+      .lineWidth(1)
+      .stroke('#e0e0e0');
+    y += 25;
   });
 
-  //––– Totals (Less Bold, Aligned)
+  //––– Totals
   const subtotal = orderData.items.reduce((sum, i) => sum + i.total, 0);
   const shipping = orderData.shippingCost || 0;
   const discount = orderData.discountAmount || 0;
@@ -119,36 +105,24 @@ function generateInvoice(orderData) {
   doc
     .fontSize(11)
     .fillColor('#333333')
-    .text(`Zwischensumme: €${subtotal.toFixed(2)}`, colPositions[2], y, { width: colWidths[2] + colWidths[3], align: 'right' })
-    .text(`Versandkosten: €${shipping.toFixed(2)}`, colPositions[2], y + 15, { width: colWidths[2] + colWidths[3], align: 'right' });
+    .text(`Zwischensumme: €${subtotal.toFixed(2)}`, colPositions[2], y, { align: 'right' })
+    .text(`Versandkosten: €${shipping.toFixed(2)}`, colPositions[2], y + 15, { align: 'right' });
   if (discount > 0) {
-    doc.text(`Rabatt: -€${discount.toFixed(2)}`, colPositions[2], y + 30, { width: colWidths[2] + colWidths[3], align: 'right' });
+    doc.text(`Rabatt: -€${discount.toFixed(2)}`, colPositions[2], y + 30, { align: 'right' });
     y += 15;
   }
   doc
-    .text(`MwSt (0%): €0.00`, colPositions[2], y + 30, { width: colWidths[2] + colWidths[3], align: 'right' })
-    .fillColor('#333333') // Lighter black for subtlety
-    .font('Helvetica') // Regular weight
+    .text(`MwSt (0%): €0.00`, colPositions[2], y + 30, { align: 'right' })
+    .fillColor('#FD6506')
     .fontSize(16)
-    .text(`Gesamtbetrag: €${grandTotal.toFixed(2)}`, colPositions[2], y + 45, { width: colWidths[2] + colWidths[3], align: 'right' });
+    .text(`Gesamtbetrag: €${grandTotal.toFixed(2)}`, colPositions[2], y + 45, { align: 'right' });
 
-  //––– Footer (Refined, Centered)
+  //––– Footer
   doc
-    .font('Helvetica')
-    .fontSize(9)
+    .fontSize(11)
     .fillColor('#777777')
-    .text(
-      '*Gemäß § 6 Abs. 1 Z 27 UStG steuerfrei – Kleinunternehmerregelung',
-      padding,
-      pageHeight - padding - 40,
-      { width: pageWidth - padding * 2, align: 'center' }
-    )
-    .text(
-      'www.pecto.at • info@pecto.at',
-      padding,
-      pageHeight - padding - 20,
-      { width: pageWidth - padding * 2, align: 'center' }
-    );
+    .text('*Gemäß § 6 Abs. 1 Z 27 UStG steuerfrei – Kleinunternehmerregelung', padding, pageHeight - padding - 40, { width: pageWidth - padding * 2, align: 'center' })
+    .text('www.pecto.at • info@pecto.at', padding, pageHeight - padding - 20, { width: pageWidth - padding * 2, align: 'center' });
 
   doc.end();
 
