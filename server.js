@@ -1,8 +1,6 @@
 // server.js
 const express = require('express');
 const bodyParser = require('body-parser');
-const fs = require('fs');
-const path = require('path');
 const generateInvoice = require('./generateInvoice'); // Import the invoice generator
 
 const app = express();
@@ -18,13 +16,14 @@ app.post('/generate-invoice', async (req, res) => {
       return res.status(400).json({ error: 'Invalid order data' });
     }
 
-    const invoicePath = await generateInvoice(orderData);
+    const browser = await generateInvoice.launchBrowser(); // Custom browser launch
+    const pdfBuffer = await generateInvoice(orderData, browser);
 
-    // Send the PDF as a response
+    // Stream PDF directly to response
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="invoice-${orderData.invoiceNumber}.pdf"`);
-    const pdfStream = fs.createReadStream(invoicePath);
-    pdfStream.pipe(res);
+    res.send(pdfBuffer);
+    await browser.close();
   } catch (error) {
     console.error('Error generating invoice:', error);
     res.status(500).json({ error: 'Failed to generate invoice', details: error.message });
