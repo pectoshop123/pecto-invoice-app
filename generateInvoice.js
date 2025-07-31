@@ -4,11 +4,20 @@ const path = require('path');
 
 async function generateInvoice(orderData) {
   const outputDir = path.join(__dirname, 'invoices');
-  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir);
+  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
   const invoiceFile = path.join(outputDir, `invoice-${orderData.invoiceNumber}.pdf`);
-  const logoPath = path.join(outputDir, 'pecto-logo.png');
-  const logoData = fs.readFileSync(logoPath).toString('base64');
+  const logoPath = path.join(__dirname, 'pecto-logo.png'); // Adjusted for Render root
+  let logoData = '';
+  try {
+    if (fs.existsSync(logoPath)) {
+      logoData = fs.readFileSync(logoPath).toString('base64');
+    } else {
+      console.warn('Logo not found at:', logoPath);
+    }
+  } catch (error) {
+    console.error('Error reading logo:', error.message);
+  }
 
   const subtotal = orderData.items.reduce((sum, i) => sum + i.total, 0);
   const shipping = orderData.shippingCost || 0;
@@ -22,7 +31,7 @@ async function generateInvoice(orderData) {
       <meta charset="UTF-8" />
       <title>Rechnung</title>
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
         @page {
           margin: 0;
         }
@@ -32,99 +41,126 @@ async function generateInvoice(orderData) {
           box-sizing: border-box;
         }
         body {
-          font-family: 'Roboto', sans-serif;
-          padding: 10mm;
+          font-family: 'Inter', sans-serif;
+          padding: 15mm;
           font-size: 14px;
-          color: #333333;
-          line-height: 1.5;
-          background-color: #ffffff;
+          color: #1a1a1a;
+          line-height: 1.6;
+          background-color: #f9f9f9;
         }
         .container {
-          padding: 10px;
           background-color: #ffffff;
+          padding: 30px;
+          border-radius: 12px;
+          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.05);
         }
         .header {
           display: flex;
           justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 20px;
+          align-items: center;
+          margin-bottom: 40px;
+          padding-bottom: 20px;
+          border-bottom: 1px solid #e0e0e0;
         }
         .logo {
-          max-height: 70px;
+          max-height: 80px;
         }
         .company-info {
           text-align: right;
-          color: #2B4455;
+          color: #4a4a4a;
         }
         .company-info strong {
-          font-size: 16px;
+          font-size: 18px;
           color: #FD6506;
+          display: block;
+          margin-bottom: 10px;
         }
         h1 {
           color: #FD6506;
-          font-size: 24px;
-          font-weight: 500;
-          margin-bottom: 15px;
+          font-size: 28px;
+          font-weight: 600;
+          margin-bottom: 30px;
+          letter-spacing: 0.5px;
         }
         .info-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 15px;
-          margin-bottom: 20px;
+          gap: 30px;
+          margin-bottom: 40px;
         }
         .customer-info, .invoice-meta {
-          font-size: 13px;
+          font-size: 14px;
         }
         .customer-info strong, .invoice-meta strong {
           display: block;
-          margin-bottom: 5px;
+          margin-bottom: 10px;
           color: #FD6506;
-          font-weight: 500;
+          font-weight: 600;
         }
         table {
           width: 100%;
           border-collapse: collapse;
-          margin-bottom: 20px;
+          margin-bottom: 40px;
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
         th {
           background-color: #FD6506;
           color: white;
-          padding: 10px;
+          padding: 15px;
           text-align: left;
-          font-weight: 500;
+          font-weight: 600;
         }
         td {
-          padding: 10px;
+          padding: 15px;
           border-bottom: 1px solid #e0e0e0;
+          text-align: left;
+        }
+        td:nth-child(2) {
+          text-align: center;
+        }
+        td:nth-child(3), td:nth-child(4) {
+          text-align: right;
         }
         tr:last-child td {
           border-bottom: none;
         }
+        tr:nth-child(even) td {
+          background-color: #f8fafc;
+        }
         .total {
           text-align: right;
-          font-weight: 500;
-          color: #333333;
+          font-weight: 600;
+          color: #1a1a1a;
+          font-size: 14px;
+          background-color: #f8fafc;
+          padding: 20px;
+          border-radius: 8px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
         .total strong {
           color: #FD6506;
-          font-size: 16px;
+          font-size: 18px;
+          display: block;
+          margin-top: 10px;
         }
         .footer {
-          margin-top: 20px;
+          margin-top: 40px;
           font-size: 11px;
           color: #777777;
           text-align: center;
+          border-top: 1px solid #e0e0e0;
+          padding-top: 20px;
         }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <div>
-            <img src="data:image/png;base64,${logoData}" class="logo" />
-          </div>
+          ${logoData ? `<img src="data:image/png;base64,${logoData}" class="logo" />` : '<div style="height: 80px;"></div>'}
           <div class="company-info">
-            <strong>PECTO e.U.</strong><br />
+            <strong>PECTO e.U.</strong>
             info@pecto.at<br />
             In der Wiesen 13/1/16<br />
             1230 Wien
@@ -181,7 +217,11 @@ async function generateInvoice(orderData) {
     </html>
   `;
 
-  const browser = await puppeteer.launch();
+  // Launch Puppeteer with Render-compatible options
+  const browser = await puppeteer.launch({
+    args: ['--no-sandbox', '--disable-setuid-sandbox'], // Required for Render
+    headless: 'new',
+  });
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: 'load' });
   await page.pdf({ path: invoiceFile, format: 'A4', printBackground: true, margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' } });
