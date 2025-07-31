@@ -1,5 +1,5 @@
 // generateInvoice.js
-const puppeteer = require('puppeteer-core');
+const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 
@@ -7,14 +7,12 @@ let browserInstance = null;
 
 async function launchBrowser() {
   if (!browserInstance) {
-    const executablePath = process.env.CHROMIUM_PATH || '/usr/bin/google-chrome'; // Updated fallback path
-    console.log('Using Chromium executable path:', executablePath);
     try {
       browserInstance = await puppeteer.launch({
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        executablePath: executablePath,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'], // Render-compatible args
         headless: 'new',
       });
+      console.log('Browser launched successfully');
     } catch (error) {
       console.error('Puppeteer launch failed:', error.message);
       throw new Error('Failed to launch browser: ' + error.message);
