@@ -1,79 +1,119 @@
-// generateInvoice.js
-const puppeteer = require('puppeteer-core');
+const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 
-async function generateInvoice(orderData) {
-  // ensure output folder
+function generateInvoice(orderData) {
   const outputDir = path.join(__dirname, 'invoices');
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir);
 
-  // set up filenames
-  const invoiceFile = path.join(outputDir, `invoice-${orderData.invoiceNumber}.pdf`);
-  const logoPath    = path.join(outputDir, 'pecto-logo.png');
+  const filePath = path.join(
+    outputDir,
+    `invoice-${orderData.invoiceNumber}.pdf`
+  );
+  const doc = new PDFDocument({ margin: 40, size: 'A4' });
+  const stream = fs.createWriteStream(filePath);
+  doc.pipe(stream);
 
-  if (!fs.existsSync(logoPath)) {
-    throw new Error('Logo not found: invoices/pecto-logo.png');
+  //––– Logo & Header
+  const logoPath = path.join(outputDir, 'pecto-logo.png');
+  if (fs.existsSync(logoPath)) {
+    doc.image(logoPath, 40, 40, { width: 100 });
   }
+  doc
+    .fontSize(20)
+    .fillColor('#FD6506')
+    .text('Rechnung', 450, 50, { align: 'right' });
 
-  // read & base64 encode logo
-  const logoData = fs.readFileSync(logoPath).toString('base64');
+  //––– Company Info
+  doc
+    .fontSize(10)
+    .fillColor('#2B4455')
+    .text('PECTO e.U.', 450, 80, { align: 'right' })
+    .text('info@pecto.at', { align: 'right' })
+    .text('In der Wiesen 13/1/16', { align: 'right' })
+    .text('1230 Wien', { align: 'right' })
+    .moveDown();
 
-  // calculate totals
-  const subtotal  = orderData.items.reduce((sum, i) => sum + i.total, 0);
-  const shipping  = Number(orderData.shippingCost)   || 0;
-  const discount  = Number(orderData.discountAmount) || 0;
+  //––– Customer & Meta
+  doc
+    .fontSize(12)
+    .fillColor('#333')
+    .text(`Kunde:\n${orderData.customer.name}\n${orderData.customer.address}\n${orderData.customer.zip} ${orderData.customer.city}`, 40, 150)
+    .text(
+      `Rechnungsnummer: ${orderData.invoiceNumber}\nDatum: ${new Date().toLocaleDateString('de-DE')}\nZahlungsart: ${orderData.paymentMethod}`,
+      350,
+      150
+    )
+    .moveDown(2);
+
+  //––– Table Header
+  const tableTop = 240;
+  doc
+    .fontSize(10)
+    .fillColor('white')
+    .rect(40, tableTop, 515, 20)
+    .fill('#FD6506');
+  doc
+    .fillColor('white')
+    .text('Produkt', 45, tableTop + 5)
+    .text('Anzahl', 260, tableTop + 5)
+    .text('Einzelpreis', 330, tableTop + 5)
+    .text('Gesamt', 430, tableTop + 5);
+
+  //––– Table Rows
+  let y = tableTop + 25;
+  doc.fillColor('#333').fontSize(10);
+  orderData.items.forEach(item => {
+    doc
+      .text(item.name, 45, y)
+      .text(item.quantity.toString(), 260, y)
+      .text(`€${item.unitPrice.toFixed(2)}`, 330, y)
+      .text(`€${item.total.toFixed(2)}`, 430, y);
+    y += 20;
+  });
+
+  //––– Totals
+  const subtotal = orderData.items.reduce((sum, i) => sum + i.total, 0);
+  const shipping = orderData.shippingCost || 0;
+  const discount = orderData.discountAmount || 0;
   const grandTotal = subtotal + shipping - discount;
 
-  // build the HTML
-  const html = `
-    <!DOCTYPE html>
-    <html lang="de">
-    <head>
-      <meta charset="utf-8">
-      <title>Rechnung ${orderData.invoiceNumber}</title>
-      <style>
-        /* … all your existing styles here … */
-      </style>
-    </head>
-    <body>
-      <!-- header, customer info, table -->
-      <div class="total">
-        Zwischensumme: €${subtotal.toFixed(2)}<br/>
-        Versandkosten: €${shipping.toFixed(2)}<br/>
-        ${discount > 0 ? `Rabatt: -€${discount.toFixed(2)}<br/>` : ''}
-        MwSt (0%): €0,00<br/>
-        <strong>Gesamtbetrag: €${grandTotal.toFixed(2)}</strong>
-      </div>
-      <!-- footer -->
-    </body>
-    </html>
-  `;
+  y += 20;
+  doc
+    .fontSize(10)
+    .text(`Zwischensumme: €${subtotal.toFixed(2)}`, 350, y)
+    .text(`Versandkosten: €${shipping.toFixed(2)}`, 350, y + 15);
+  if (discount > 0) {
+    doc.text(`Rabatt: -€${discount.toFixed(2)}`, 350, y + 30);
+  }
+  doc
+    .font('Helvetica-Bold')
+    .text(`Gesamtbetrag: €${grandTotal.toFixed(2)}`, 350, y + 45);
 
-  // launch the system chrome installed via Aptfile
-  const browser = await puppeteer.launch({
-    executablePath: '/usr/bin/chromium',
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  //––– Footer
+  doc
+    .font('Helvetica')
+    .fontSize(8)
+    .fillColor('#777')
+    .text(
+      '*Gemäß § 6 Abs. 1 Z 27 UStG steuerfrei – Kleinunternehmerregelung • www.pecto.at • info@pecto.at',
+      40,
+      780,
+      { width: 515, align: 'center' }
+    );
+
+  doc.end();
+
+  return new Promise(resolve => {
+    stream.on('finish', () => resolve(filePath));
   });
-
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: 'load' });
-  await page.pdf({
-    path: invoiceFile,
-    format: 'A4',
-    printBackground: true,
-    margin: { top: 0, right: 0, bottom: 0, left: 0 }
-  });
-  await browser.close();
-
-  console.log(`✅ PDF created at ${invoiceFile}`);
 }
 
 module.exports = generateInvoice;
 
-// If run directly:
+// For local testing:
 if (require.main === module) {
-  const sampleData = {
+  generateInvoice({
     customer: {
       name: 'Max Mustermann',
       address: 'Musterstraße 1',
@@ -87,8 +127,6 @@ if (require.main === module) {
     invoiceNumber: '1001',
     paymentMethod: 'PayPal',
     shippingCost: 4.49,
-    discountAmount: 5.00
-  };
-
-  generateInvoice(sampleData).catch(console.error);
+    discountAmount: 5.0
+  }).then(fp => console.log(`Written to ${fp}`));
 }
