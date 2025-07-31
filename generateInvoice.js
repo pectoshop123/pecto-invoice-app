@@ -7,11 +7,18 @@ let browserInstance = null;
 
 async function launchBrowser() {
   if (!browserInstance) {
-    browserInstance = await puppeteer.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser', // Fallback for Render
-      headless: 'new',
-    });
+    const executablePath = process.env.CHROMIUM_PATH || '/usr/bin/google-chrome'; // Updated fallback path
+    console.log('Using Chromium executable path:', executablePath);
+    try {
+      browserInstance = await puppeteer.launch({
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        executablePath: executablePath,
+        headless: 'new',
+      });
+    } catch (error) {
+      console.error('Puppeteer launch failed:', error.message);
+      throw new Error('Failed to launch browser: ' + error.message);
+    }
   }
   return browserInstance;
 }
