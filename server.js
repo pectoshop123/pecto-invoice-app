@@ -94,10 +94,10 @@ app.post('/generate-invoice', async (req, res) => {
     `;
 
     // ✅ FIX: Puppeteer launch setup for Render.com
-    puppeteer.launch({
+    const browser = await puppeteer.launch({
   executablePath: '/usr/bin/chromium',
   args: ['--no-sandbox','--disable-setuid-sandbox']
-})
+});
 
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'load' });
