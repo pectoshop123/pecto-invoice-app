@@ -16,6 +16,6 @@
     "express": "^5.1.0",
     "nodemailer": "^7.0.5",
     "pdfkit": "^0.17.1",
-    "puppeteer-core": "^24.15.0" // Changed to puppeteer-core to manage Chromium manually
+    "puppeteer-core": "^24.15.0" 
   }
 }
