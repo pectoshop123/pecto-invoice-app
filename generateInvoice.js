@@ -13,93 +13,101 @@ function generateInvoice(orderData) {
 
   const pageWidth = doc.page.width;
   const pageHeight = doc.page.height;
-  const padding = 10; // 10mm internal padding for a clean edge-to-edge design
+  const padding = 20; // Increased for a premium feel
 
-  //––– Logo & Company Info (Elegant Right-Aligned Design)
+  //––– Logo & Company Info (Refined Design)
   const logoPath = path.join(outputDir, 'pecto-logo.png');
-  let logoHeight = 70;
+  let logoHeight = 50; // Reduced for elegance
   if (fs.existsSync(logoPath)) {
     doc.image(logoPath, padding, padding, { height: logoHeight });
   }
 
-  const companyInfoX = pageWidth - padding - 200; // Reduced width for elegance
+  const companyInfoX = pageWidth - padding - 180; // Adjusted for balance
   doc
-    .fontSize(10) // Reduced from 14pt for a subtler look
+    .fontSize(10) // Smaller font for a beautiful, subtle design
     .fillColor('#2B4455')
-    .text('PECTO e.U.', companyInfoX, padding + (logoHeight - 50), { width: 180, align: 'right' })
-    .text('info@pecto.at', companyInfoX, padding + (logoHeight - 30), { width: 180, align: 'right' })
-    .text('In der Wiesen 13/1/16', companyInfoX, padding + (logoHeight - 10), { width: 180, align: 'right' })
-    .text('1230 Wien', companyInfoX, padding + logoHeight + 10, { width: 180, align: 'right' });
+    .font('Helvetica')
+    .text('PECTO e.U.', companyInfoX, padding + 5, { width: 160, align: 'right' })
+    .text('info@pecto.at', companyInfoX, padding + 20, { width: 160, align: 'right' })
+    .text('In der Wiesen 13/1/16', companyInfoX, padding + 35, { width: 160, align: 'right' })
+    .text('1230 Wien', companyInfoX, padding + 50, { width: 160, align: 'right' });
 
-  //––– Title (Premium Black with Subtle Accent)
+  //––– Title (Black Color for Professional Look)
   doc
-    .fontSize(28) // Slightly larger for a bold statement
-    .fillColor('#1a1a1a') // Dark gray for sophistication, with a hint of gold (#FFD700) underline
-    .text('Rechnung', padding, padding + logoHeight + 30)
-    .lineWidth(1)
-    .moveTo(padding, padding + logoHeight + 55)
-    .lineTo(padding + 100, padding + logoHeight + 55)
-    .stroke('#FFD700');
+    .fontSize(26) // Slightly adjusted for premium scale
+    .fillColor('#000000') // Black for a classic, billion-dollar elegance
+    .font('Helvetica-Bold')
+    .text('Rechnung', padding, padding + logoHeight + 20);
 
-  //––– Customer & Invoice Meta (Grid-like, Balanced Layout)
+  //––– Header Line for Luxury Touch
+  doc
+    .moveTo(padding, padding + logoHeight + 60)
+    .lineTo(pageWidth - padding, padding + logoHeight + 60)
+    .lineWidth(0.5)
+    .stroke('#e0e0e0');
+
+  //––– Customer & Invoice Meta (Balanced Grid)
   const infoTop = padding + logoHeight + 80;
   doc
-    .fontSize(14)
+    .fontSize(12) // Adjusted for clarity
     .fillColor('#FD6506')
     .text('Kunde:', padding, infoTop)
     .fillColor('#333333')
-    .fontSize(12)
-    .text(orderData.customer.name, padding, infoTop + 20)
-    .text(orderData.customer.address, padding, infoTop + 40)
-    .text(`${orderData.customer.zip} ${orderData.customer.city}`, padding, infoTop + 60);
+    .fontSize(11)
+    .text(orderData.customer.name, padding, infoTop + 15)
+    .text(orderData.customer.address, padding, infoTop + 30)
+    .text(`${orderData.customer.zip} ${orderData.customer.city}`, padding, infoTop + 45);
 
   doc
     .fillColor('#FD6506')
-    .text('Rechnungsdetails:', pageWidth / 2 + 20, infoTop) // Adjusted for balance
+    .text('Rechnungsdetails:', pageWidth / 2, infoTop)
     .fillColor('#333333')
-    .text(`Rechnungsnummer: ${orderData.invoiceNumber}`, pageWidth / 2 + 20, infoTop + 20)
-    .text(`Datum: ${new Date().toLocaleDateString('de-DE')}`, pageWidth / 2 + 20, infoTop + 40)
-    .text(`Zahlungsart: ${orderData.paymentMethod}`, pageWidth / 2 + 20, infoTop + 60);
+    .text(`Rechnungsnummer: ${orderData.invoiceNumber}`, pageWidth / 2, infoTop + 15)
+    .text(`Datum: ${new Date().toLocaleDateString('de-DE')}`, pageWidth / 2, infoTop + 30)
+    .text(`Zahlungsart: ${orderData.paymentMethod}`, pageWidth / 2, infoTop + 45);
 
-  //––– Table (Perfectly Aligned, Premium Design)
-  const tableTop = infoTop + 100;
-  const colWidths = [250, 70, 100, 100];
+  //––– Table (Perfectly Aligned, Billion-Dollar Polish)
+  const tableTop = infoTop + 70;
+  const colWidths = [260, 80, 110, 110]; // Adjusted for better alignment
   const colPositions = [padding, padding + colWidths[0], padding + colWidths[0] + colWidths[1], padding + colWidths[0] + colWidths[1] + colWidths[2]];
 
-  // Header with Gold Accent
+  // Header
   doc
     .fillColor('#FD6506')
-    .rect(padding, tableTop - 5, pageWidth - padding * 2, 30)
+    .rect(padding, tableTop - 5, pageWidth - padding * 2, 25)
     .fill();
   doc
     .fillColor('white')
-    .fontSize(12) // Increased for clarity
-    .text('Produkt', colPositions[0], tableTop + 5, { width: colWidths[0], align: 'left' })
-    .text('Anzahl', colPositions[1], tableTop + 5, { width: colWidths[1], align: 'center' })
-    .text('Einzelpreis', colPositions[2], tableTop + 5, { width: colWidths[2], align: 'right' })
-    .text('Gesamt', colPositions[3], tableTop + 5, { width: colWidths[3], align: 'right' });
+    .fontSize(11)
+    .font('Helvetica-Bold')
+    .text('Produkt', colPositions[0] + 5, tableTop) // Added padding for beauty
+    .text('Anzahl', colPositions[1] + 5, tableTop)
+    .text('Einzelpreis', colPositions[2] + 5, tableTop, { align: 'right' })
+    .text('Gesamt', colPositions[3] + 5, tableTop, { align: 'right' });
 
-  // Rows with Alternating Backgrounds
-  let y = tableTop + 35;
-  doc.fillColor('#333333').fontSize(12);
+  // Rows
+  let y = tableTop + 30;
+  doc.fillColor('#333333').fontSize(11).font('Helvetica');
   orderData.items.forEach((item, index) => {
-    if (index % 2 === 0) {
-      doc.rect(padding, y - 5, pageWidth - padding * 2, 30).fill('#f9f9f9');
-    }
+    const rowFill = index % 2 === 0 ? '#f8fafc' : '#ffffff'; // Alternating for premium look
     doc
-      .text(item.name, colPositions[0], y, { width: colWidths[0], align: 'left' })
-      .text(item.quantity.toString(), colPositions[1], y, { width: colWidths[1], align: 'center' })
-      .text(`€${item.unitPrice.toFixed(2)}`, colPositions[2], y, { width: colWidths[2], align: 'right' })
-      .text(`€${item.total.toFixed(2)}`, colPositions[3], y, { width: colWidths[3], align: 'right' });
+      .rect(padding, y - 5, pageWidth - padding * 2, 25)
+      .fill(rowFill);
     doc
-      .moveTo(padding, y + 25)
-      .lineTo(pageWidth - padding, y + 25)
+      .fillColor('#333333')
+      .text(item.name, colPositions[0] + 5, y)
+      .text(item.quantity.toString(), colPositions[1] + 5, y, { width: colWidths[1], align: 'center' })
+      .text(`€${item.unitPrice.toFixed(2)}`, colPositions[2] + 5, y, { width: colWidths[2] - 10, align: 'right' })
+      .text(`€${item.total.toFixed(2)}`, colPositions[3] + 5, y, { width: colWidths[3] - 10, align: 'right' });
+    doc
+      .moveTo(padding, y + 20)
+      .lineTo(pageWidth - padding, y + 20)
       .lineWidth(0.5)
       .stroke('#e0e0e0');
-    y += 30;
+    y += 25; // Adjusted spacing for beauty
   });
 
-  //––– Totals (Luxury Alignment)
+  //––– Totals (Elegant, Aligned)
   const subtotal = orderData.items.reduce((sum, i) => sum + i.total, 0);
   const shipping = orderData.shippingCost || 0;
   const discount = orderData.discountAmount || 0;
@@ -107,36 +115,38 @@ function generateInvoice(orderData) {
 
   y += 20;
   doc
-    .fontSize(12)
+    .fontSize(11)
     .fillColor('#333333')
     .text(`Zwischensumme: €${subtotal.toFixed(2)}`, colPositions[2], y, { width: colWidths[2] + colWidths[3], align: 'right' })
-    .text(`Versandkosten: €${shipping.toFixed(2)}`, colPositions[2], y + 20, { width: colWidths[2] + colWidths[3], align: 'right' });
+    .text(`Versandkosten: €${shipping.toFixed(2)}`, colPositions[2], y + 15, { width: colWidths[2] + colWidths[3], align: 'right' });
   if (discount > 0) {
-    doc.text(`Rabatt: -€${discount.toFixed(2)}`, colPositions[2], y + 40, { width: colWidths[2] + colWidths[3], align: 'right' });
-    y += 20;
+    doc.text(`Rabatt: -€${discount.toFixed(2)}`, colPositions[2], y + 30, { width: colWidths[2] + colWidths[3], align: 'right' });
+    y += 15;
   }
   doc
-    .text(`MwSt (0%): €0.00`, colPositions[2], y + 40, { width: colWidths[2] + colWidths[3], align: 'right' })
-    .fillColor('#FFD700') // Gold for a billionaire touch
+    .text(`MwSt (0%): €0.00`, colPositions[2], y + 30, { width: colWidths[2] + colWidths[3], align: 'right' })
+    .fillColor('#000000') // Black for a classic total
     .font('Helvetica-Bold')
-    .fontSize(18) // Larger for emphasis
-    .text(`Gesamtbetrag: €${grandTotal.toFixed(2)}`, colPositions[2], y + 60, { width: colWidths[2] + colWidths[3], align: 'right' });
+    .fontSize(16)
+    .text(`Gesamtbetrag: €${grandTotal.toFixed(2)}`, colPositions[2], y + 45, { width: colWidths[2] + colWidths[3], align: 'right' });
 
-  //––– Footer (Elegant and Centered)
+  //––– Footer (Refined, Centered)
   doc
     .font('Helvetica')
-    .fontSize(11)
+    .fontSize(9) // Smaller for subtlety
     .fillColor('#777777')
     .text(
-      '*Gemäß § 6 Abs. 1 Z 27 UStG steuerfrei – Kleinunternehmerregelung • ',
+      '*Gemäß § 6 Abs. 1 Z 27 UStG steuerfrei – Kleinunternehmerregelung',
       padding,
       pageHeight - padding - 40,
       { width: pageWidth - padding * 2, align: 'center' }
     )
-    .fillColor('#FFD700')
-    .text('www.pecto.at', { continued: true })
-    .fillColor('#777777')
-    .text(' • info@pecto.at', { width: pageWidth - padding * 2, align: 'center' });
+    .text(
+      'www.pecto.at • info@pecto.at',
+      padding,
+      pageHeight - padding - 20,
+      { width: pageWidth - padding * 2, align: 'center' }
+    );
 
   doc.end();
 
