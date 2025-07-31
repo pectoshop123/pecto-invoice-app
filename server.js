@@ -95,7 +95,7 @@ app.post('/generate-invoice', async (req, res) => {
 
     // ✅ FIX: Puppeteer launch setup for Render.com
     const browser = await puppeteer.launch({
-  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
   args: ['--no-sandbox', '--disable-setuid-sandbox'],
   headless: true
 });
