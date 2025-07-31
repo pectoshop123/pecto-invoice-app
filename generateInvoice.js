@@ -9,14 +9,14 @@ async function launchBrowser() {
   if (!browserInstance) {
     browserInstance = await puppeteer.launch({
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser', // Fallback path for Render
+      executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser', // Fallback for Render
       headless: 'new',
     });
   }
   return browserInstance;
 }
 
-async function generateInvoice(orderData, browser) {
+async function generateInvoice(orderData) {
   const outputDir = path.join(__dirname, 'invoices');
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
@@ -230,14 +230,16 @@ async function generateInvoice(orderData, browser) {
     </html>
   `;
 
-  // Launch browser and generate PDF
   const browser = await launchBrowser();
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: 'load' });
   const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
-  await browser.close();
+  if (browserInstance) {
+    await browser.close();
+    browserInstance = null; // Reset for next use
+  }
 
-  return pdfBuffer; // Return buffer instead of saving to file
+  return pdfBuffer;
 }
 
 module.exports = { generateInvoice, launchBrowser };
