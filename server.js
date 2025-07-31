@@ -93,11 +93,12 @@ app.post('/generate-invoice', async (req, res) => {
       </html>
     `;
 
-    const browser = await puppeteer.launch({
-  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+   const browser = await puppeteer.launch({
+  headless: true,
   args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  headless: true
+  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
 });
+
 
 
     const page = await browser.newPage();
