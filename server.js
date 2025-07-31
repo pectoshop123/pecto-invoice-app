@@ -1,7 +1,7 @@
 // server.js
 const express = require('express');
 const bodyParser = require('body-parser');
-const { generateInvoice, launchBrowser } = require('./generateInvoice'); // Updated import
+const { generateInvoice } = require('./generateInvoice'); // Updated import
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -16,7 +16,6 @@ app.post('/generate-invoice', async (req, res) => {
       return res.status(400).json({ error: 'Invalid order data' });
     }
 
-    const browser = await launchBrowser();
     const pdfBuffer = await generateInvoice(orderData);
 
     res.setHeader('Content-Type', 'application/pdf');
