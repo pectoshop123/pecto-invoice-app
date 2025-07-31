@@ -13,18 +13,18 @@ function generateInvoice(orderData) {
 
   const pageWidth = doc.page.width;
   const pageHeight = doc.page.height;
-  const padding = 20; // Increased for a premium feel
+  const padding = 20; // Premium spacing
 
   //––– Logo & Company Info (Refined Design)
   const logoPath = path.join(outputDir, 'pecto-logo.png');
-  let logoHeight = 50; // Reduced for elegance
+  let logoHeight = 50;
   if (fs.existsSync(logoPath)) {
     doc.image(logoPath, padding, padding, { height: logoHeight });
   }
 
-  const companyInfoX = pageWidth - padding - 180; // Adjusted for balance
+  const companyInfoX = pageWidth - padding - 180;
   doc
-    .fontSize(10) // Smaller font for a beautiful, subtle design
+    .fontSize(10)
     .fillColor('#2B4455')
     .font('Helvetica')
     .text('PECTO e.U.', companyInfoX, padding + 5, { width: 160, align: 'right' })
@@ -32,11 +32,11 @@ function generateInvoice(orderData) {
     .text('In der Wiesen 13/1/16', companyInfoX, padding + 35, { width: 160, align: 'right' })
     .text('1230 Wien', companyInfoX, padding + 50, { width: 160, align: 'right' });
 
-  //––– Title (Black Color for Professional Look)
+  //––– Title (Less Bold Black)
   doc
-    .fontSize(26) // Slightly adjusted for premium scale
-    .fillColor('#000000') // Black for a classic, billion-dollar elegance
-    .font('Helvetica-Bold')
+    .fontSize(26)
+    .fillColor('#1a1a1a') // Slightly lighter black for elegance
+    .font('Helvetica') // Regular weight, not bold
     .text('Rechnung', padding, padding + logoHeight + 20);
 
   //––– Header Line for Luxury Touch
@@ -49,7 +49,7 @@ function generateInvoice(orderData) {
   //––– Customer & Invoice Meta (Balanced Grid)
   const infoTop = padding + logoHeight + 80;
   doc
-    .fontSize(12) // Adjusted for clarity
+    .fontSize(12)
     .fillColor('#FD6506')
     .text('Kunde:', padding, infoTop)
     .fillColor('#333333')
@@ -66,9 +66,9 @@ function generateInvoice(orderData) {
     .text(`Datum: ${new Date().toLocaleDateString('de-DE')}`, pageWidth / 2, infoTop + 30)
     .text(`Zahlungsart: ${orderData.paymentMethod}`, pageWidth / 2, infoTop + 45);
 
-  //––– Table (Fixed Alignment, Billion-Dollar Polish)
+  //––– Table (Fixed Product Column Alignment)
   const tableTop = infoTop + 70;
-  const colWidths = [270, 80, 110, 110]; // Adjusted for better fit
+  const colWidths = [300, 80, 110, 110]; // Increased product column width to 300px for better fit
   const colPositions = [padding, padding + colWidths[0], padding + colWidths[0] + colWidths[1], padding + colWidths[0] + colWidths[1] + colWidths[2]];
 
   // Header
@@ -85,16 +85,17 @@ function generateInvoice(orderData) {
     .text('Einzelpreis', colPositions[2] + 5, tableTop + 2, { width: colWidths[2] - 10, align: 'right' })
     .text('Gesamt', colPositions[3] + 5, tableTop + 2, { width: colWidths[3] - 10, align: 'right' });
 
-  // Rows
+  // Rows with Improved Product Alignment
   let y = tableTop + 25;
   doc.fillColor('#333333').fontSize(11).font('Helvetica');
   orderData.items.forEach((item, index) => {
-    const rowFill = index % 2 === 0 ? '#f8fafc' : '#ffffff'; // Alternating rows
+    const rowFill = index % 2 === 0 ? '#f8fafc' : '#ffffff';
     doc
       .rect(padding, y - 5, pageWidth - padding * 2, 25)
       .fill(rowFill);
+    // Wrap product name if too long, with better alignment
     doc
-      .text(item.name, colPositions[0] + 5, y, { width: colWidths[0] - 10, align: 'left' })
+      .text(item.name, colPositions[0] + 5, y, { width: colWidths[0] - 15, align: 'left', lineBreak: true, lineGap: 2 })
       .text(item.quantity.toString(), colPositions[1] + 5, y, { width: colWidths[1] - 10, align: 'center' })
       .text(`€${item.unitPrice.toFixed(2)}`, colPositions[2] + 5, y, { width: colWidths[2] - 10, align: 'right' })
       .text(`€${item.total.toFixed(2)}`, colPositions[3] + 5, y, { width: colWidths[3] - 10, align: 'right' });
@@ -108,7 +109,7 @@ function generateInvoice(orderData) {
     y += 25;
   });
 
-  //––– Totals (Elegant, Aligned)
+  //––– Totals (Less Bold, Aligned)
   const subtotal = orderData.items.reduce((sum, i) => sum + i.total, 0);
   const shipping = orderData.shippingCost || 0;
   const discount = orderData.discountAmount || 0;
@@ -126,15 +127,15 @@ function generateInvoice(orderData) {
   }
   doc
     .text(`MwSt (0%): €0.00`, colPositions[2], y + 30, { width: colWidths[2] + colWidths[3], align: 'right' })
-    .fillColor('#000000') // Black for a classic total
-    .font('Helvetica-Bold')
+    .fillColor('#000000')
+    .font('Helvetica') // Regular weight, less bold
     .fontSize(16)
     .text(`Gesamtbetrag: €${grandTotal.toFixed(2)}`, colPositions[2], y + 45, { width: colWidths[2] + colWidths[3], align: 'right' });
 
   //––– Footer (Refined, Centered)
   doc
     .font('Helvetica')
-    .fontSize(9) // Smaller for subtlety
+    .fontSize(9)
     .fillColor('#777777')
     .text(
       '*Gemäß § 6 Abs. 1 Z 27 UStG steuerfrei – Kleinunternehmerregelung',
