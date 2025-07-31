@@ -1,16 +1,19 @@
 {
   "name": "pecto-invoice-app",
   "version": "1.0.0",
-  "description": "PECTO invoice generation service using PDFKit",
-  "main": "server.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node server.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["invoice","pdf","pdfkit","express"],
-  "author": "PECTO",
-  "license": "MIT",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
   "dependencies": {
+    "body-parser": "^2.2.0",
     "express": "^5.1.0",
-    "pdfkit": "^0.17.1"
+    "nodemailer": "^7.0.5",
+    "pdfkit": "^0.17.1",
+    "puppeteer": "^24.15.0"
   }
 }
