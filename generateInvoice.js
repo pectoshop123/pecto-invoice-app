@@ -1,3 +1,4 @@
+// generateInvoice.js
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
@@ -7,7 +8,7 @@ async function generateInvoice(orderData) {
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
   const invoiceFile = path.join(outputDir, `invoice-${orderData.invoiceNumber}.pdf`);
-  const logoPath = path.join(__dirname, 'pecto-logo.png'); // Adjusted for Render root
+  const logoPath = path.join(__dirname, 'pecto-logo.png');
   let logoData = '';
   try {
     if (fs.existsSync(logoPath)) {
