@@ -1,13 +1,25 @@
 // generateInvoice.js
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 const path = require('path');
 
-async function generateInvoice(orderData) {
+let browserInstance = null;
+
+async function launchBrowser() {
+  if (!browserInstance) {
+    browserInstance = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser', // Fallback path for Render
+      headless: 'new',
+    });
+  }
+  return browserInstance;
+}
+
+async function generateInvoice(orderData, browser) {
   const outputDir = path.join(__dirname, 'invoices');
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
-  const invoiceFile = path.join(outputDir, `invoice-${orderData.invoiceNumber}.pdf`);
   const logoPath = path.join(__dirname, 'pecto-logo.png');
   let logoData = '';
   try {
@@ -218,39 +230,14 @@ async function generateInvoice(orderData) {
     </html>
   `;
 
-  // Launch Puppeteer with Render-compatible options
-  const browser = await puppeteer.launch({
-    args: ['--no-sandbox', '--disable-setuid-sandbox'], // Required for Render
-    headless: 'new',
-  });
+  // Launch browser and generate PDF
+  const browser = await launchBrowser();
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: 'load' });
-  await page.pdf({ path: invoiceFile, format: 'A4', printBackground: true, margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' } });
+  const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
   await browser.close();
 
-  console.log(`✅ PDF erstellt: ${invoiceFile}`);
+  return pdfBuffer; // Return buffer instead of saving to file
 }
 
-module.exports = generateInvoice;
-
-// Example run
-if (require.main === module) {
-  const sampleData = {
-    customer: {
-      name: 'Max Mustermann',
-      address: 'Musterstraße 1',
-      zip: '1230',
-      city: 'Wien'
-    },
-    items: [
-      { name: 'Metallkarte Gold', quantity: 2, unitPrice: 35, total: 70 },
-      { name: 'Gravur Rückseite', quantity: 1, unitPrice: 10, total: 10 }
-    ],
-    invoiceNumber: '1001',
-    paymentMethod: 'PayPal',
-    shippingCost: 4.49,
-    discountAmount: 5.00
-  };
-
-  generateInvoice(sampleData);
-}
+module.exports = { generateInvoice, launchBrowser };
