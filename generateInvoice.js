@@ -1,141 +1,200 @@
-const PDFDocument = require('pdfkit');
+const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 
-function generateInvoice(orderData) {
+async function generateInvoice(orderData) {
   const outputDir = path.join(__dirname, 'invoices');
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir);
 
-  const filePath = path.join(outputDir, `invoice-${orderData.invoiceNumber}.pdf`);
-  const doc = new PDFDocument({ margin: 0, size: 'A4' });
-  const stream = fs.createWriteStream(filePath);
-  doc.pipe(stream);
-
-  const pageWidth = doc.page.width;
-  const pageHeight = doc.page.height;
-  const padding = 28; // Approximate 10mm (since 1mm ≈ 2.834pt)
-
-  //––– Logo & Company Info
+  const invoiceFile = path.join(outputDir, `invoice-${orderData.invoiceNumber}.pdf`);
   const logoPath = path.join(outputDir, 'pecto-logo.png');
-  let logoHeight = 70;
-  if (fs.existsSync(logoPath)) {
-    doc.image(logoPath, padding, padding, { height: logoHeight });
-  }
+  const logoData = fs.readFileSync(logoPath).toString('base64');
 
-  const companyInfoX = pageWidth - padding - 200;
-  doc
-    .fontSize(12)
-    .fillColor('#2B4455')
-    .text('PECTO e.U.', companyInfoX, padding + 5, { align: 'right' })
-    .text('info@pecto.at', companyInfoX, padding + 20, { align: 'right' })
-    .text('In der Wiesen 13/1/16', companyInfoX, padding + 35, { align: 'right' })
-    .text('1230 Wien', companyInfoX, padding + 50, { align: 'right' });
-
-  //––– Title
-  doc
-    .fontSize(24)
-    .fillColor('#FD6506')
-    .text('Rechnung', padding, padding + logoHeight + 20);
-
-  //––– Info Grid
-  const infoTop = padding + logoHeight + 60;
-  doc
-    .fontSize(13)
-    .fillColor('#FD6506')
-    .text('Kunde:', padding, infoTop)
-    .fillColor('#333333')
-    .text(orderData.customer.name, padding, infoTop + 15)
-    .text(orderData.customer.address, padding, infoTop + 30)
-    .text(`${orderData.customer.zip} ${orderData.customer.city}`, padding, infoTop + 45);
-
-  doc
-    .fillColor('#FD6506')
-    .text('Rechnungsdetails:', pageWidth / 2, infoTop)
-    .fillColor('#333333')
-    .text(`Rechnungsnummer: ${orderData.invoiceNumber}`, pageWidth / 2, infoTop + 15)
-    .text(`Datum: ${new Date().toLocaleDateString('de-DE')}`, pageWidth / 2, infoTop + 30)
-    .text(`Zahlungsart: ${orderData.paymentMethod}`, pageWidth / 2, infoTop + 45);
-
-  //––– Table
-  const tableTop = infoTop + 70;
-  const colWidths = [250, 80, 100, 100];
-  const colPositions = [padding, padding + colWidths[0], padding + colWidths[0] + colWidths[1], padding + colWidths[0] + colWidths[1] + colWidths[2]];
-
-  // Header Background
-  doc
-    .fillColor('#FD6506')
-    .rect(padding, tableTop - 5, pageWidth - padding * 2, 25)
-    .fill();
-  doc
-    .fillColor('white')
-    .fontSize(12)
-    .text('Produkt', colPositions[0] + 5, tableTop)
-    .text('Anzahl', colPositions[1] + 5, tableTop, { align: 'center' })
-    .text('Einzelpreis', colPositions[2] + 5, tableTop, { align: 'right' })
-    .text('Gesamt', colPositions[3] + 5, tableTop, { align: 'right' });
-
-  // Rows
-  let y = tableTop + 25;
-  doc.fillColor('#333333').fontSize(11);
-  orderData.items.forEach((item, index) => {
-    const rowFill = index % 2 === 0 ? '#f8fafc' : '#ffffff';
-    doc
-      .rect(padding, y - 5, pageWidth - padding * 2, 25)
-      .fill(rowFill);
-    doc
-      .text(item.name, colPositions[0] + 5, y)
-      .text(item.quantity.toString(), colPositions[1] + 5, y, { align: 'center' })
-      .text(`€${item.unitPrice.toFixed(2)}`, colPositions[2] + 5, y, { align: 'right' })
-      .text(`€${item.total.toFixed(2)}`, colPositions[3] + 5, y, { align: 'right' });
-    doc
-      .moveTo(padding, y + 20)
-      .lineTo(pageWidth - padding, y + 20)
-      .lineWidth(1)
-      .stroke('#e0e0e0');
-    y += 25;
-  });
-
-  //––– Totals
   const subtotal = orderData.items.reduce((sum, i) => sum + i.total, 0);
   const shipping = orderData.shippingCost || 0;
   const discount = orderData.discountAmount || 0;
   const grandTotal = subtotal + shipping - discount;
 
-  y += 20;
-  doc
-    .fontSize(11)
-    .fillColor('#333333')
-    .text(`Zwischensumme: €${subtotal.toFixed(2)}`, colPositions[2], y, { align: 'right' })
-    .text(`Versandkosten: €${shipping.toFixed(2)}`, colPositions[2], y + 15, { align: 'right' });
-  if (discount > 0) {
-    doc.text(`Rabatt: -€${discount.toFixed(2)}`, colPositions[2], y + 30, { align: 'right' });
-    y += 15;
-  }
-  doc
-    .text(`MwSt (0%): €0.00`, colPositions[2], y + 30, { align: 'right' })
-    .fillColor('#FD6506')
-    .fontSize(16)
-    .text(`Gesamtbetrag: €${grandTotal.toFixed(2)}`, colPositions[2], y + 45, { align: 'right' });
+  const html = `
+    <!DOCTYPE html>
+    <html lang="de">
+    <head>
+      <meta charset="UTF-8" />
+      <title>Rechnung</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+        @page {
+          margin: 0;
+        }
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        body {
+          font-family: 'Roboto', sans-serif;
+          padding: 10mm;
+          font-size: 14px;
+          color: #333333;
+          line-height: 1.5;
+          background-color: #ffffff;
+        }
+        .container {
+          padding: 10px;
+          background-color: #ffffff;
+        }
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 20px;
+        }
+        .logo {
+          max-height: 70px;
+        }
+        .company-info {
+          text-align: right;
+          color: #2B4455;
+        }
+        .company-info strong {
+          font-size: 16px;
+          color: #FD6506;
+        }
+        h1 {
+          color: #FD6506;
+          font-size: 24px;
+          font-weight: 500;
+          margin-bottom: 15px;
+        }
+        .info-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 15px;
+          margin-bottom: 20px;
+        }
+        .customer-info, .invoice-meta {
+          font-size: 13px;
+        }
+        .customer-info strong, .invoice-meta strong {
+          display: block;
+          margin-bottom: 5px;
+          color: #FD6506;
+          font-weight: 500;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 20px;
+        }
+        th {
+          background-color: #FD6506;
+          color: white;
+          padding: 10px;
+          text-align: left;
+          font-weight: 500;
+        }
+        td {
+          padding: 10px;
+          border-bottom: 1px solid #e0e0e0;
+        }
+        tr:last-child td {
+          border-bottom: none;
+        }
+        .total {
+          text-align: right;
+          font-weight: 500;
+          color: #333333;
+        }
+        .total strong {
+          color: #FD6506;
+          font-size: 16px;
+        }
+        .footer {
+          margin-top: 20px;
+          font-size: 11px;
+          color: #777777;
+          text-align: center;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <div>
+            <img src="data:image/png;base64,${logoData}" class="logo" />
+          </div>
+          <div class="company-info">
+            <strong>PECTO e.U.</strong><br />
+            info@pecto.at<br />
+            In der Wiesen 13/1/16<br />
+            1230 Wien
+          </div>
+        </div>
 
-  //––– Footer
-  doc
-    .fontSize(11)
-    .fillColor('#777777')
-    .text('*Gemäß § 6 Abs. 1 Z 27 UStG steuerfrei – Kleinunternehmerregelung', padding, pageHeight - padding - 40, { width: pageWidth - padding * 2, align: 'center' })
-    .text('www.pecto.at • info@pecto.at', padding, pageHeight - padding - 20, { width: pageWidth - padding * 2, align: 'center' });
+        <h1>Rechnung</h1>
 
-  doc.end();
+        <div class="info-grid">
+          <div class="customer-info">
+            <strong>Kunde:</strong>
+            ${orderData.customer.name}<br />
+            ${orderData.customer.address}<br />
+            ${orderData.customer.zip} ${orderData.customer.city}
+          </div>
+          <div class="invoice-meta">
+            <strong>Rechnungsdetails:</strong>
+            Rechnungsnummer: ${orderData.invoiceNumber}<br />
+            Datum: ${new Date().toLocaleDateString('de-DE')}<br />
+            Zahlungsart: ${orderData.paymentMethod}
+          </div>
+        </div>
 
-  return new Promise(resolve => {
-    stream.on('finish', () => resolve(filePath));
-  });
+        <table>
+          <tr>
+            <th>Produkt</th>
+            <th>Anzahl</th>
+            <th>Einzelpreis</th>
+            <th>Gesamt</th>
+          </tr>
+          ${orderData.items.map(item => `
+          <tr>
+            <td>${item.name}</td>
+            <td>${item.quantity}</td>
+            <td>€${item.unitPrice.toFixed(2)}</td>
+            <td>€${item.total.toFixed(2)}</td>
+          </tr>`).join('')}
+        </table>
+
+        <div class="total">
+          Zwischensumme: €${subtotal.toFixed(2)}<br />
+          Versandkosten: €${shipping.toFixed(2)}<br />
+          ${discount > 0 ? `Rabatt: -€${discount.toFixed(2)}<br />` : ''}
+          MwSt (0%): €0,00<br />
+          <strong>Gesamtbetrag: €${grandTotal.toFixed(2)}</strong>
+        </div>
+
+        <div class="footer">
+          *Gemäß § 6 Abs. 1 Z 27 UStG steuerfrei – Kleinunternehmerregelung<br />
+          www.pecto.at • info@pecto.at
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const browser = await puppeteer.launch();
+  const page = await browser.newPage();
+  await page.setContent(html, { waitUntil: 'load' });
+  await page.pdf({ path: invoiceFile, format: 'A4', printBackground: true, margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' } });
+  await browser.close();
+
+  console.log(`✅ PDF erstellt: ${invoiceFile}`);
 }
 
 module.exports = generateInvoice;
 
-// For local testing:
+// Example run
 if (require.main === module) {
-  generateInvoice({
+  const sampleData = {
     customer: {
       name: 'Max Mustermann',
       address: 'Musterstraße 1',
@@ -149,6 +208,8 @@ if (require.main === module) {
     invoiceNumber: '1001',
     paymentMethod: 'PayPal',
     shippingCost: 4.49,
-    discountAmount: 5.0
-  }).then(fp => console.log(`Written to ${fp}`));
+    discountAmount: 5.00
+  };
+
+  generateInvoice(sampleData);
 }
