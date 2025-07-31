@@ -1,16 +1,14 @@
 {
   "name": "pecto-invoice-app",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "puppeteer": {
-  "skip_chromium_download": false,
-  "description": "",
   "dependencies": {
     "body-parser": "^2.2.0",
     "express": "^5.1.0",
