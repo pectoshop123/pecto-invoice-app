@@ -8,6 +8,8 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "puppeteer": {
+  "skip_chromium_download": false,
   "description": "",
   "dependencies": {
     "body-parser": "^2.2.0",
