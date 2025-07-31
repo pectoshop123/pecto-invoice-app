@@ -1,15 +1,15 @@
 {
   "name": "pecto-invoice-app",
   "version": "1.0.1",
-  "main": "generateInvoice.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node generateInvoice.js",
+    "start": "node server.js",
     "test": "echo \"No tests specified\" && exit 0"
   },
   "keywords": ["invoice", "pdf", "pecto", "generation"],
   "author": "Pecto Team",
   "license": "MIT",
-  "description": "A sophisticated invoice generation application for Pecto e.U. using PDFKit and Puppeteer.",
+  "description": "A sophisticated invoice generation web service for Pecto e.U. using Puppeteer and Express.",
   "dependencies": {
     "body-parser": "^2.2.0",
     "express": "^5.1.0",
