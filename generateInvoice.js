@@ -66,9 +66,9 @@ function generateInvoice(orderData) {
     .text(`Datum: ${new Date().toLocaleDateString('de-DE')}`, pageWidth / 2, infoTop + 30)
     .text(`Zahlungsart: ${orderData.paymentMethod}`, pageWidth / 2, infoTop + 45);
 
-  //––– Table (Perfectly Aligned, Billion-Dollar Polish)
+  //––– Table (Fixed Alignment, Billion-Dollar Polish)
   const tableTop = infoTop + 70;
-  const colWidths = [260, 80, 110, 110]; // Adjusted for better alignment
+  const colWidths = [270, 80, 110, 110]; // Adjusted for better fit
   const colPositions = [padding, padding + colWidths[0], padding + colWidths[0] + colWidths[1], padding + colWidths[0] + colWidths[1] + colWidths[2]];
 
   // Header
@@ -80,31 +80,32 @@ function generateInvoice(orderData) {
     .fillColor('white')
     .fontSize(11)
     .font('Helvetica-Bold')
-    .text('Produkt', colPositions[0] + 5, tableTop) // Added padding for beauty
-    .text('Anzahl', colPositions[1] + 5, tableTop)
-    .text('Einzelpreis', colPositions[2] + 5, tableTop, { align: 'right' })
-    .text('Gesamt', colPositions[3] + 5, tableTop, { align: 'right' });
+    .text('Produkt', colPositions[0] + 5, tableTop + 2, { width: colWidths[0] - 10, align: 'left' })
+    .text('Anzahl', colPositions[1] + 5, tableTop + 2, { width: colWidths[1] - 10, align: 'center' })
+    .text('Einzelpreis', colPositions[2] + 5, tableTop + 2, { width: colWidths[2] - 10, align: 'right' })
+    .text('Gesamt', colPositions[3] + 5, tableTop + 2, { width: colWidths[3] - 10, align: 'right' });
 
   // Rows
-  let y = tableTop + 30;
+  let y = tableTop + 25;
   doc.fillColor('#333333').fontSize(11).font('Helvetica');
   orderData.items.forEach((item, index) => {
-    const rowFill = index % 2 === 0 ? '#f8fafc' : '#ffffff'; // Alternating for premium look
+    const rowFill = index % 2 === 0 ? '#f8fafc' : '#ffffff'; // Alternating rows
     doc
       .rect(padding, y - 5, pageWidth - padding * 2, 25)
       .fill(rowFill);
     doc
-      .fillColor('#333333')
-      .text(item.name, colPositions[0] + 5, y)
-      .text(item.quantity.toString(), colPositions[1] + 5, y, { width: colWidths[1], align: 'center' })
+      .text(item.name, colPositions[0] + 5, y, { width: colWidths[0] - 10, align: 'left' })
+      .text(item.quantity.toString(), colPositions[1] + 5, y, { width: colWidths[1] - 10, align: 'center' })
       .text(`€${item.unitPrice.toFixed(2)}`, colPositions[2] + 5, y, { width: colWidths[2] - 10, align: 'right' })
       .text(`€${item.total.toFixed(2)}`, colPositions[3] + 5, y, { width: colWidths[3] - 10, align: 'right' });
-    doc
-      .moveTo(padding, y + 20)
-      .lineTo(pageWidth - padding, y + 20)
-      .lineWidth(0.5)
-      .stroke('#e0e0e0');
-    y += 25; // Adjusted spacing for beauty
+    if (index < orderData.items.length - 1) {
+      doc
+        .moveTo(padding, y + 20)
+        .lineTo(pageWidth - padding, y + 20)
+        .lineWidth(0.5)
+        .stroke('#e0e0e0');
+    }
+    y += 25;
   });
 
   //––– Totals (Elegant, Aligned)
