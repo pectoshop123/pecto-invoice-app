@@ -4,8 +4,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"No tests specified\" && exit 0",
-    "postinstall": "echo 'Puppeteer postinstall complete'"
+    "test": "echo \"No tests specified\" && exit 0"
   },
   "keywords": ["invoice", "pdf", "pecto", "generation"],
   "author": "Pecto Team",
@@ -16,6 +15,6 @@
     "express": "^5.1.0",
     "nodemailer": "^7.0.5",
     "pdfkit": "^0.17.1",
-    "puppeteer-core": "^19.7.2"
+    "puppeteer": "^19.7.2" 
   }
 }
