@@ -2,14 +2,27 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 let browserInstance = null;
 
 async function launchBrowser() {
   if (!browserInstance) {
+    const chromiumPath = path.join(__dirname, 'node_modules/puppeteer/.local-chromium');
+    console.log('Attempting to use Chromium path:', chromiumPath);
+
+    // Ensure Chromium is downloaded if not present
+    if (!fs.existsSync(chromiumPath)) {
+      console.log('Chromium not found, triggering download...');
+      const browserFetcher = puppeteer.createBrowserFetcher();
+      const revisionInfo = await browserFetcher.download('1066850'); // Stable revision for 19.7.2
+      console.log('Chromium downloaded to:', revisionInfo.executablePath);
+    }
+
     try {
       browserInstance = await puppeteer.launch({
-        args: ['--no-sandbox', '--disable-setuid-sandbox'], // Render-compatible args
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        executablePath: fs.existsSync(chromiumPath) ? path.join(chromiumPath, 'chrome') : undefined, // Dynamic path
         headless: 'new',
       });
       console.log('Browser launched successfully');
