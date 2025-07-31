@@ -1,20 +1,19 @@
 {
   "name": "pecto-invoice-app",
   "version": "1.0.0",
-  "description": "",
+  "description": "Generate PDF invoices via Puppeteer on Render",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "postinstall": "puppeteer install"
+    "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "engines": {
+    "node": "18.x"
+  },
   "dependencies": {
     "body-parser": "^2.2.0",
     "express": "^5.1.0",
     "nodemailer": "^7.0.5",
     "pdfkit": "^0.17.1",
-    "puppeteer": "^24.15.0"
+    "puppeteer-core": "^24.15.0"
   }
 }
