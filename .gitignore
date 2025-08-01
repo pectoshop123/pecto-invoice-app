@@ -1,0 +1,13 @@
+# dependencies
+node_modules/
+
+# generated PDFs
+invoices/
+
+# logs
+*.log
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.vscode/
