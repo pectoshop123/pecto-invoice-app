@@ -7,7 +7,7 @@ async function generateInvoice(orderData) {
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir);
 
   const invoiceFile = path.join(outputDir, `invoice-${orderData.invoiceNumber}.pdf`);
-  const logoPath = path.join(outputDir, 'invoices', 'pecto-logo.png');
+  const logoPath  = path.join(outputDir, 'pecto-logo.png');
   const logoData = fs.readFileSync(logoPath).toString('base64');
 
   const subtotal = orderData.items.reduce((sum, i) => sum + i.total, 0);
@@ -41,3 +41,4 @@ async function generateInvoice(orderData) {
 }
 
 module.exports = generateInvoice;
+
