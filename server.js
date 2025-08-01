@@ -1,40 +1,23 @@
-// server.js
 const express = require('express');
 const bodyParser = require('body-parser');
-const { generateInvoice } = require('./generateInvoice'); // Updated import
+const generateInvoice = require('./generateInvoice');
 
 const app = express();
-const port = process.env.PORT || 3000;
+app.use(bodyParser.json({ limit: '5mb' }));
 
-app.use(bodyParser.json());
-
-// Endpoint to generate invoice
 app.post('/generate-invoice', async (req, res) => {
   try {
-    const orderData = req.body;
-    if (!orderData || !orderData.customer || !orderData.items || !orderData.invoiceNumber) {
-      return res.status(400).json({ error: 'Invalid order data' });
-    }
-
-    const pdfBuffer = await generateInvoice(orderData);
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="invoice-${orderData.invoiceNumber}.pdf"`);
-    res.send(pdfBuffer);
-  } catch (error) {
-    console.error('Error generating invoice:', error);
-    res.status(500).json({ error: 'Failed to generate invoice', details: error.message });
+    // req.body should contain your orderData
+    const pdfPath = await generateInvoice(req.body);
+    // send file back
+    res.type('application/pdf').sendFile(pdfPath);
+  } catch (err) {
+    console.error('❌ Invoice error:', err);
+    res.status(500).send('Fehler beim Erstellen der Rechnung.');
   }
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'healthy' });
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server läuft auf http://localhost:${PORT}`);
 });
-
-// Start server
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
-
-module.exports = app;
