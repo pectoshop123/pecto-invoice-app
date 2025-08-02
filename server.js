@@ -12,12 +12,14 @@ const port = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
 
-// SMTP configuration for Nodemailer (use your credentials)
+// SMTP configuration for Pecto email
 const transporter = nodemailer.createTransport({
-  service: 'gmail', // Or your SMTP service (e.g., 'sendgrid', 'mailgun')
+  host: 'mail.pecto.at',
+  port: 465,
+  secure: true, // SSL/TLS on port 465
   auth: {
-    user: process.env.EMAIL_USER, // e.g., your Gmail address
-    pass: process.env.EMAIL_PASS // Gmail app password
+    user: process.env.EMAIL_USER, // e.g., rechnung@pecto.at
+    pass: process.env.EMAIL_PASS // Password for rechnung@pecto.at
   }
 });
 
@@ -25,8 +27,8 @@ const transporter = nodemailer.createTransport({
 app.post('/generate-invoice-and-email', async (req, res) => {
   try {
     const orderData = req.body;
-    if (!orderData || !orderData.customer || !orderData.items || !orderData.invoiceNumber) {
-      return res.status(400).json({ error: 'Invalid order data' });
+    if (!orderData || !orderData.customer || !orderData.items || !orderData.invoiceNumber || !orderData.customer.email) {
+      return res.status(400).json({ error: 'Invalid order data (missing customer email)' });
     }
 
     // Generate PDF
@@ -48,7 +50,9 @@ app.post('/generate-invoice-and-email', async (req, res) => {
       </tr>
     `).join('');
     const subtotal = orderData.items.reduce((sum, i) => sum + i.total, 0).toFixed(2);
-    const grandTotal = (subtotal + (orderData.shippingCost || 0) - (orderData.discountAmount || 0)).toFixed(2);
+    const shipping = orderData.shippingCost ? orderData.shippingCost.toFixed(2) : '0.00';
+    const discount = orderData.discountAmount ? orderData.discountAmount.toFixed(2) : '0.00';
+    const grandTotal = (parseFloat(subtotal) + parseFloat(shipping) - parseFloat(discount)).toFixed(2);
 
     const customerEmailHTML = `
       <!DOCTYPE html>
@@ -255,7 +259,7 @@ app.post('/generate-invoice-and-email', async (req, res) => {
                       <table class="header-row" style="width: 100%; table-layout: fixed;">
                         <tr>
                           <td class="shop-name__cell" style="text-align: left;">
-                            <img src="{{shop.email_logo_url}}" alt="{{ shop.name }}" style="max-width: 150px; height: auto;">
+                            <img src="https://www.pecto.at/wp-content/uploads/2024/01/Pecto-Logo-2-1.png" alt="PECTO e.U." style="max-width: 150px; height: auto;">
                           </td>
                           <td>
                             <table class="order-po-number__container" style="width: 100%;">
@@ -353,11 +357,11 @@ app.post('/generate-invoice-and-email', async (req, res) => {
     // Send email to customer with HTML and PDF attachment
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: orderData.customer.email, // Assume orderData.customer.email is provided
+      to: orderData.customer.email,
       subject: emailTitle,
       html: customerEmailHTML,
       attachments: [
-        { filename: `invoice-${orderData.invoiceNumber}.pdf`, path: invoicePath }
+        { filename: `Rechnung_${orderData.invoiceNumber}.pdf`, path: invoicePath }
       ]
     });
 
@@ -365,10 +369,10 @@ app.post('/generate-invoice-and-email', async (req, res) => {
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: 'rechnung@pecto.at',
-      subject: `Rechnung Copy #${orderData.invoiceNumber}`,
-      text: `Attached is a copy of the invoice for order #${orderData.invoiceNumber}.`,
+      subject: `Rechnung Kopie #${orderData.invoiceNumber}`,
+      text: `Anbei eine Kopie der Rechnung für Bestellung #${orderData.invoiceNumber}.`,
       attachments: [
-        { filename: `invoice-${orderData.invoiceNumber}.pdf`, path: invoicePath }
+        { filename: `Rechnung_${orderData.invoiceNumber}.pdf`, path: invoicePath }
       ]
     });
 
