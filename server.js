@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 10000; // Changed to 10000 to match your setup
 
 app.use(bodyParser.json());
 
@@ -38,7 +38,7 @@ app.post('/generate-invoice-and-email', async (req, res) => {
     const itemCount = orderData.items.length;
     const emailTitle = 'Bestellbestätigung und Rechnung';
     const emailBody = `
-      Vielen Dank für Ihren Kauf! Hier ist Ihre Bestellbestätigung und Rechnung. 
+      Vielen Dank für Ihren Kauf! Hier ist Ihre Bestellbestätigung und Rechnung.
       ${itemCount > 1 ? 'Diese Artikel' : 'Dieser Artikel'} sind für Sie reserviert.
     `;
     const productList = orderData.items.map(item => `
@@ -387,8 +387,9 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'healthy' });
 });
 
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+// Bind to all interfaces to allow external access
+app.listen(port, '0.0.0.0', () => {
+  console.log(`🚀 Server läuft auf http://0.0.0.0:${port}`);
 });
 
 module.exports = app;
