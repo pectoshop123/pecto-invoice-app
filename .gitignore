@@ -23,4 +23,6 @@ build/
 .DS_Store
 Thumbs.db
 .vscode/
-.env
+
+# PM2 ecosystem config (if used)
+ecosystem.config.js
