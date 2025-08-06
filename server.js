@@ -3,7 +3,9 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
 const generateInvoice = require('./generateInvoice');
+const getNextInvoiceNumber = require('./invoiceNumberGenerator');
 const fs = require('fs');
+
 const app = express();
 const port = process.env.PORT || 10000;
 
@@ -27,12 +29,20 @@ app.get('/', (req, res) => {
 app.post('/generate-invoice-and-email', async (req, res) => {
   try {
     const orderData = req.body;
-    if (!orderData || !orderData.customer || !orderData.items || !orderData.invoiceNumber || !orderData.customer.email) {
+
+    // 📌 Automatische Rechnungsnummer
+    if (!orderData.invoiceNumber) {
+      orderData.invoiceNumber = getNextInvoiceNumber();
+    }
+
+    if (!orderData || !orderData.customer || !orderData.items || !orderData.customer.email) {
       return res.status(400).json({ error: 'Invalid order data (missing customer email)' });
     }
+
     const invoicePath = await generateInvoice(orderData);
     const itemCount = orderData.items.length;
     const emailTitle = 'Bestellbestätigung und Rechnung';
+
     const productList = orderData.items.map(item => `
       <tr>
         <td>${item.name}</td>
@@ -41,11 +51,14 @@ app.post('/generate-invoice-and-email', async (req, res) => {
         <td>€${item.total.toFixed(2)}</td>
       </tr>
     `).join('');
+
     const subtotal = orderData.items.reduce((sum, i) => sum + i.total, 0).toFixed(2);
     const shipping = orderData.shippingCost ? orderData.shippingCost.toFixed(2) : '0.00';
     const discount = orderData.discountAmount ? orderData.discountAmount.toFixed(2) : '0.00';
     const grandTotal = (parseFloat(subtotal) + parseFloat(shipping) - parseFloat(discount)).toFixed(2);
+
     const customerEmailHTML = `<!DOCTYPE html>…${/* [Your HTML Email Template Here, No Changes Needed] */''}`;
+
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: orderData.customer.email,
@@ -55,6 +68,7 @@ app.post('/generate-invoice-and-email', async (req, res) => {
         { filename: `Rechnung_${orderData.invoiceNumber}.pdf`, path: invoicePath }
       ]
     });
+
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: 'rechnung@pecto.at',
@@ -64,6 +78,7 @@ app.post('/generate-invoice-and-email', async (req, res) => {
         { filename: `Rechnung_${orderData.invoiceNumber}.pdf`, path: invoicePath }
       ]
     });
+
     res.status(200).json({ message: 'Invoice generated and emails sent' });
   } catch (error) {
     console.error('Error:', error);
