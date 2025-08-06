@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
 const generateInvoice = require('./generateInvoice');
 const getNextInvoiceNumber = require('./invoiceNumberGenerator');
+const generateEmailHTML = require('./emailTemplate'); // ✅ Importiert!
 const fs = require('fs');
 
 const app = express();
@@ -40,7 +41,6 @@ app.post('/generate-invoice-and-email', async (req, res) => {
     }
 
     const invoicePath = await generateInvoice(orderData);
-    const itemCount = orderData.items.length;
     const emailTitle = 'Bestellbestätigung und Rechnung';
 
     const productList = orderData.items.map(item => `
@@ -57,7 +57,8 @@ app.post('/generate-invoice-and-email', async (req, res) => {
     const discount = orderData.discountAmount ? orderData.discountAmount.toFixed(2) : '0.00';
     const grandTotal = (parseFloat(subtotal) + parseFloat(shipping) - parseFloat(discount)).toFixed(2);
 
-    const customerEmailHTML = `<!DOCTYPE html>…${/* [Your HTML Email Template Here, No Changes Needed] */''}`;
+    // ✅ E-Mail HTML generieren mit externer Vorlage
+    const customerEmailHTML = generateEmailHTML(orderData, productList, subtotal, shipping, discount, grandTotal);
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
@@ -80,6 +81,7 @@ app.post('/generate-invoice-and-email', async (req, res) => {
     });
 
     res.status(200).json({ message: 'Invoice generated and emails sent' });
+
   } catch (error) {
     console.error('Error:', error);
     console.error(error.stack);
