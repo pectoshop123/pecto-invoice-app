@@ -2,7 +2,13 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
-const generateInvoice = require('./generateInvoice');
+let generateInvoice;
+try {
+  generateInvoice = require('./generateInvoice');
+} catch (err) {
+  console.error('Failed to load generateInvoice module:', err.message);
+  generateInvoice = () => Promise.resolve('/path/to/placeholder.pdf'); // Fallback
+}
 const fs = require('fs');
 const app = express();
 const port = process.env.PORT || 10000;
@@ -19,6 +25,12 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Validate environment variables
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  console.error('Missing EMAIL_USER or EMAIL_PASS in .env');
+  process.exit(1);
+}
+
 app.get('/', (req, res) => {
   res.send('✅ PECTO Invoice Server läuft');
 });
@@ -31,6 +43,10 @@ app.post('/generate-invoice-and-email', async (req, res) => {
     }
 
     const invoicePath = await generateInvoice(orderData);
+    if (!fs.existsSync(invoicePath)) {
+      throw new Error('Generated invoice file not found');
+    }
+
     const itemCount = orderData.items.length;
     const emailTitle = 'Bestellbestätigung und Rechnung';
     const productList = orderData.items.map(item => `
@@ -45,9 +61,20 @@ app.post('/generate-invoice-and-email', async (req, res) => {
     const shipping = orderData.shippingCost ? orderData.shippingCost.toFixed(2) : '0.00';
     const discount = orderData.discountAmount ? orderData.discountAmount.toFixed(2) : '0.00';
     const grandTotal = (parseFloat(subtotal) + parseFloat(shipping) - parseFloat(discount)).toFixed(2);
-    const customerEmailHTML = `<!DOCTYPE html>…${/* [Your HTML Email Template Here] */''}`;
+    const customerEmailHTML = `
+      <!DOCTYPE html>
+      <html lang="de">
+      <head><meta charset="UTF-8"><title>${emailTitle}</title></head>
+      <body>
+        <h1>${emailTitle}</h1>
+        <p>Kunde: ${orderData.customer.name}</p>
+        <p>Rechnungsnummer: ${orderData.invoiceNumber}</p>
+        <table>${productList}</table>
+        <p>Gesamtbetrag: €${grandTotal}</p>
+      </body>
+      </html>
+    `;
 
-    // Send emails independently
     const customerEmail = transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: orderData.customer.email,
@@ -66,9 +93,7 @@ app.post('/generate-invoice-and-email', async (req, res) => {
     }).then(() => console.log('Copy email sent successfully'))
       .catch(err => console.error('Copy email failed:', err.message));
 
-    // Wait for both emails to attempt (non-blocking)
     await Promise.allSettled([customerEmail, copyEmail]);
-
     res.status(200).json({ message: 'Invoice generated and emails sent (some may have failed)' });
   } catch (error) {
     console.error('Error:', error);
