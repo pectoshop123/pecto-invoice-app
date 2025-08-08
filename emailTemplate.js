@@ -1,7 +1,7 @@
 module.exports = function generateEmailHTML(order) {
   const { customer, items, totals, invoiceNumber, paymentMethod } = order;
 
-  const productRows = (items || []).map(i => `
+  const productRows = items.map(i => `
     <tr>
       <td style="padding:10px;border-bottom:1px solid #eee;">${i.name}</td>
       <td style="padding:10px;border-bottom:1px solid #eee;text-align:center;">${i.quantity}</td>
@@ -31,8 +31,8 @@ module.exports = function generateEmailHTML(order) {
           <tr><td style="padding:0 20px 10px;">
             <h2 style="color:#FD6506;margin:0 0 10px;">Bestellbestätigung & Rechnung</h2>
             <p style="margin:0 0 8px;">Rechnungsnummer: <strong>${invoiceNumber}</strong></p>
-            <p style="margin:0 0 8px;">Kunde: <strong>${customer?.name || ''}</strong></p>
-            <p style="margin:0 0 8px;">Adresse: ${customer?.address || ''}${customer?.zip ? ', ' + customer.zip : ''} ${customer?.city || ''}</p>
+            <p style="margin:0 0 8px;">Kunde: <strong>${customer.name}</strong></p>
+            <p style="margin:0 0 8px;">Adresse: ${customer.address || ''}, ${customer.zip || ''} ${customer.city || ''}</p>
             <p style="margin:0 0 8px;">Zahlungsart: ${paymentMethod || '—'}</p>
           </td></tr>
 
@@ -54,19 +54,19 @@ module.exports = function generateEmailHTML(order) {
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
               <tr>
                 <td style="padding:6px 0;">Zwischensumme</td>
-                <td align="right" style="padding:6px 0;">€${Number(totals?.subtotal || 0).toFixed(2)}</td>
+                <td align="right" style="padding:6px 0;">€${totals.subtotal.toFixed(2)}</td>
               </tr>
               <tr>
                 <td style="padding:6px 0;">Versand</td>
-                <td align="right" style="padding:6px 0;">€${Number(totals?.shipping || 0).toFixed(2)}</td>
+                <td align="right" style="padding:6px 0;">€${totals.shipping.toFixed(2)}</td>
               </tr>
               <tr>
                 <td style="padding:6px 0;">Rabatt</td>
-                <td align="right" style="padding:6px 0;">-€${Number(totals?.discount || 0).toFixed(2)}</td>
+                <td align="right" style="padding:6px 0;">-€${totals.discount.toFixed(2)}</td>
               </tr>
               <tr>
                 <td style="padding:10px 0;border-top:1px solid #eee;font-weight:bold;">Gesamt</td>
-                <td align="right" style="padding:10px 0;border-top:1px solid #eee;font-weight:bold;color:#FD6506;">€${Number(totals?.grandTotal || 0).toFixed(2)}</td>
+                <td align="right" style="padding:10px 0;border-top:1px solid #eee;font-weight:bold;color:#FD6506;">€${totals.grandTotal.toFixed(2)}</td>
               </tr>
             </table>
           </td></tr>
@@ -75,7 +75,7 @@ module.exports = function generateEmailHTML(order) {
             <td style="background:#F8F8F8;color:#666;padding:16px 20px;text-align:center;font-size:12px;">
               <p style="margin:6px 0;">Die Rechnung ist als PDF im Anhang beigefügt.</p>
               <p style="margin:6px 0;">Kleinunternehmerregelung gem. § 6 Abs. 1 Z 27 UStG – keine USt. ausgewiesen.</p>
-              <p style="margin:6px 0;">Fragen? Antworte einfach auf diese E‑Mail oder schreib uns an <a href="mailto:info@pecto.at" style="color:#FD6506;text-decoration:none;">info@pecto.at</a>.</p>
+              <p style="margin:6px 0;">Fragen? Antwort einfach auf diese E-Mail oder schreib uns an <a href="mailto:info@pecto.at" style="color:#FD6506;text-decoration:none;">info@pecto.at</a>.</p>
             </td>
           </tr>
         </table>
