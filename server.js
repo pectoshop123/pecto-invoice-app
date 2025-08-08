@@ -1,75 +1,112 @@
-const express = require('express');
-const nodemailer = require('nodemailer');
-const path = require('path');
-const fs = require('fs');
 require('dotenv').config();
+const express = require('express');
+const bodyParser = require('body-parser');
+const fs = require('fs');
+const nodemailer = require('nodemailer');
 
+const generateInvoice = require('./generateInvoice');
+const getNextInvoiceNumber = require('./invoiceNumberGenerator');
 const generateEmailHTML = require('./emailTemplate');
-const generateInvoicePDF = require('./invoiceGenerator');
 
 const app = express();
-app.use(express.json());
+const port = process.env.PORT || 10000;
 
-// Nodemailer transporter
+app.use(bodyParser.json());
+
+// --- SMTP transporter ---
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  secure: false,
+  host: process.env.SMTP_HOST || 'mail.pecto.at',
+  port: Number(process.env.SMTP_PORT || 465),
+  secure: String(process.env.SMTP_SECURE || 'true') === 'true',
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   }
 });
 
-// Attachments: logo + PDF invoice
-const attachments = (invoicePath, invoiceNumber) => ([
-  {
-    filename: 'logo-email.png',
-    path: path.join(__dirname, 'assets', 'logo-email.png'),
-    cid: 'pectoLogo@cid' // same CID used in emailTemplate.js
-  },
-  {
-    filename: `Rechnung_${invoiceNumber}.pdf`,
-    path: invoicePath
-  }
-]);
+// Sanity check
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  console.error('❌ Missing EMAIL_USER or EMAIL_PASS in .env');
+  process.exit(1);
+}
 
-// Generate invoice number
-const generateInvoiceNumber = () => {
-  const date = new Date();
-  return `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}-${Math.floor(Math.random() * 9000) + 1000}`;
-};
+app.get('/', (_req, res) => res.send('✅ PECTO Invoice Server läuft'));
 
-// API route: generate PDF + send email
+app.get('/health', (_req, res) => res.status(200).json({ status: 'healthy' }));
+
 app.post('/generate-invoice-and-email', async (req, res) => {
   try {
-    const order = req.body;
-    const invoiceNumber = generateInvoiceNumber();
-    order.invoiceNumber = invoiceNumber;
+    const orderData = req.body;
 
-    // Generate PDF
-    const invoicePath = path.join(__dirname, 'invoices', `Rechnung_${invoiceNumber}.pdf`);
-    await generateInvoicePDF(order, invoicePath);
+    // Validate minimal payload
+    if (
+      !orderData ||
+      !orderData.customer ||
+      !orderData.customer.email ||
+      !Array.isArray(orderData.items) ||
+      orderData.items.length === 0
+    ) {
+      return res.status(400).json({ error: 'Invalid order data' });
+    }
 
-    // Generate HTML email
-    const emailHTML = generateEmailHTML(order);
+    // Auto invoice number if missing
+    if (!orderData.invoiceNumber) {
+      orderData.invoiceNumber = getNextInvoiceNumber();
+    }
 
-    // Send email
-    await transporter.sendMail({
-      from: `"PECTO" <${process.env.EMAIL_USER}>`,
-      to: order.customer.email,
-      cc: process.env.EMAIL_USER, // Copy to yourself
-      subject: `Ihre Rechnung ${invoiceNumber}`,
-      html: emailHTML,
-      attachments: attachments(invoicePath, invoiceNumber)
+    // Derive totals
+    const subtotal = orderData.items.reduce((sum, i) => sum + Number(i.total || (i.quantity * i.unitPrice) || 0), 0);
+    const shipping = Number(orderData.shippingCost || 0);
+    const discount = Number(orderData.discountAmount || 0);
+    const grandTotal = (subtotal + shipping - discount);
+
+    // Generate the PDF
+    const invoicePath = await generateInvoice({
+      ...orderData,
+      totals: { subtotal, shipping, discount, grandTotal }
+    });
+    if (!fs.existsSync(invoicePath)) throw new Error('Generated invoice file not found');
+
+    // Build email HTML
+    const emailHtml = generateEmailHTML({
+      ...orderData,
+      totals: { subtotal, shipping, discount, grandTotal }
     });
 
-    res.json({ success: true, message: 'Rechnung gesendet', invoiceNumber });
-  } catch (error) {
-    console.error('Fehler beim Senden der Rechnung:', error);
-    res.status(500).json({ success: false, error: 'E-Mail konnte nicht gesendet werden.' });
+    const subject = `Bestellbestätigung & Rechnung #${orderData.invoiceNumber}`;
+
+    // Send both emails (customer + copy)
+    const customerEmail = transporter.sendMail({
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      to: orderData.customer.email,
+      subject,
+      html: emailHtml,
+      attachments: [{ filename: `Rechnung_${orderData.invoiceNumber}.pdf`, path: invoicePath }]
+    }).then(() => console.log('✅ Customer email sent'))
+      .catch(err => console.error('❌ Customer email failed:', err.message));
+
+    const copyEmail = transporter.sendMail({
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      to: process.env.COPY_TO || 'rechnung@pecto.at',
+      subject: `Kopie: Rechnung #${orderData.invoiceNumber}`,
+      html: emailHtml,
+      attachments: [{ filename: `Rechnung_${orderData.invoiceNumber}.pdf`, path: invoicePath }]
+    }).then(() => console.log('✅ Copy email sent'))
+      .catch(err => console.error('❌ Copy email failed:', err.message));
+
+    await Promise.allSettled([customerEmail, copyEmail]);
+
+    res.status(200).json({ message: 'Invoice generated and emails sent', invoiceNumber: orderData.invoiceNumber });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to generate invoice or send emails', details: err.message });
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server läuft auf Port ${PORT}`));
+app.listen(port, '0.0.0.0', () => {
+  console.log(`🚀 Server läuft auf http://0.0.0.0:${port}`);
+});
+
+// Safety logs
+process.on('unhandledRejection', (r) => console.error('UnhandledRejection:', r));
+process.on('uncaughtException', (e) => console.error('UncaughtException:', e));
