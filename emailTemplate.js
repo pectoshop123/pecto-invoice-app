@@ -24,7 +24,7 @@ module.exports = function generateEmailHTML(order) {
         <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.05);">
           <tr>
             <td style="padding:30px 20px;text-align:center;background:#fff;">
-              <img src="https://pecto.at/cdn/logo-email.png" alt="PECTO" style="max-width:150px;height:auto;" />
+              <img src="cid:pectoLogo@cid" alt="PECTO" style="max-width:150px;height:auto;" />
             </td>
           </tr>
 
@@ -75,7 +75,7 @@ module.exports = function generateEmailHTML(order) {
             <td style="background:#F8F8F8;color:#666;padding:16px 20px;text-align:center;font-size:12px;">
               <p style="margin:6px 0;">Die Rechnung ist als PDF im Anhang beigefügt.</p>
               <p style="margin:6px 0;">Kleinunternehmerregelung gem. § 6 Abs. 1 Z 27 UStG – keine USt. ausgewiesen.</p>
-              <p style="margin:6px 0;">Fragen? Antwort einfach auf diese E‑Mail oder schreib uns an <a href="mailto:info@pecto.at" style="color:#FD6506;text-decoration:none;">info@pecto.at</a>.</p>
+              <p style="margin:6px 0;">Fragen? Antwort einfach auf diese E-Mail oder schreib uns an <a href="mailto:info@pecto.at" style="color:#FD6506;text-decoration:none;">info@pecto.at</a>.</p>
             </td>
           </tr>
         </table>
