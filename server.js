@@ -5,7 +5,7 @@ const fs = require('fs');
 require('dotenv').config();
 
 const generateEmailHTML = require('./emailTemplate');
-const generateInvoicePDF = require('./invoiceGenerator');
+const generateInvoicePDF = require('./generateInvoice');
 
 const app = express();
 app.use(express.json());
@@ -100,3 +100,4 @@ app.post('/generate-invoice-and-email', async (req, res) => {
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`Server läuft auf Port ${PORT}`));
+
