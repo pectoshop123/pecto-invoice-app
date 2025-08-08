@@ -1,112 +1,95 @@
-require('dotenv').config();
 const express = require('express');
-const bodyParser = require('body-parser');
-const fs = require('fs');
 const nodemailer = require('nodemailer');
+const path = require('path');
+const fs = require('fs');
+require('dotenv').config();
 
-const generateInvoice = require('./generateInvoice');
-const getNextInvoiceNumber = require('./invoiceNumberGenerator');
 const generateEmailHTML = require('./emailTemplate');
+const generateInvoicePDF = require('./invoiceGenerator');
 
 const app = express();
-const port = process.env.PORT || 10000;
+app.use(express.json());
 
-app.use(bodyParser.json());
-
-// --- SMTP transporter ---
+// Nodemailer transporter
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'mail.pecto.at',
-  port: Number(process.env.SMTP_PORT || 465),
-  secure: String(process.env.SMTP_SECURE || 'true') === 'true',
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: false,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   }
 });
 
-// Sanity check
-if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-  console.error('❌ Missing EMAIL_USER or EMAIL_PASS in .env');
-  process.exit(1);
-}
+// Attachments: logo + PDF invoice
+const attachments = (invoicePath, invoiceNumber) => ([
+  {
+    filename: 'logo-email.png',
+    path: path.join(__dirname, 'assets', 'logo-email.png'),
+    cid: 'pectoLogo@cid' // same CID used in emailTemplate.js
+  },
+  {
+    filename: `Rechnung_${invoiceNumber}.pdf`,
+    path: invoicePath
+  }
+]);
 
-app.get('/', (_req, res) => res.send('✅ PECTO Invoice Server läuft'));
+// Helper: generate automatic invoice number
+const getNextInvoiceNumber = () => {
+  const counterFile = path.join(__dirname, 'invoiceCounter.txt');
+  let counter = 1;
 
-app.get('/health', (_req, res) => res.status(200).json({ status: 'healthy' }));
+  if (fs.existsSync(counterFile)) {
+    counter = parseInt(fs.readFileSync(counterFile, 'utf8'), 10) + 1;
+  }
 
+  fs.writeFileSync(counterFile, String(counter), 'utf8');
+  return counter.toString().padStart(5, '0'); // e.g. 00001, 00002
+};
+
+// Main route
 app.post('/generate-invoice-and-email', async (req, res) => {
   try {
     const orderData = req.body;
 
-    // Validate minimal payload
-    if (
-      !orderData ||
-      !orderData.customer ||
-      !orderData.customer.email ||
-      !Array.isArray(orderData.items) ||
-      orderData.items.length === 0
-    ) {
-      return res.status(400).json({ error: 'Invalid order data' });
-    }
-
-    // Auto invoice number if missing
+    // Assign automatic invoice number if missing
     if (!orderData.invoiceNumber) {
       orderData.invoiceNumber = getNextInvoiceNumber();
     }
 
-    // Derive totals
-    const subtotal = orderData.items.reduce((sum, i) => sum + Number(i.total || (i.quantity * i.unitPrice) || 0), 0);
-    const shipping = Number(orderData.shippingCost || 0);
-    const discount = Number(orderData.discountAmount || 0);
-    const grandTotal = (subtotal + shipping - discount);
+    // Generate PDF invoice
+    const invoicePath = await generateInvoicePDF(orderData);
 
-    // Generate the PDF
-    const invoicePath = await generateInvoice({
-      ...orderData,
-      totals: { subtotal, shipping, discount, grandTotal }
-    });
-    if (!fs.existsSync(invoicePath)) throw new Error('Generated invoice file not found');
+    // Generate HTML email body
+    const emailHTML = generateEmailHTML(orderData);
 
-    // Build email HTML
-    const emailHtml = generateEmailHTML({
-      ...orderData,
-      totals: { subtotal, shipping, discount, grandTotal }
-    });
-
-    const subject = `Bestellbestätigung & Rechnung #${orderData.invoiceNumber}`;
-
-    // Send both emails (customer + copy)
-    const customerEmail = transporter.sendMail({
-      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+    // Send to customer
+    await transporter.sendMail({
+      from: `"PECTO" <${process.env.EMAIL_USER}>`,
       to: orderData.customer.email,
-      subject,
-      html: emailHtml,
-      attachments: [{ filename: `Rechnung_${orderData.invoiceNumber}.pdf`, path: invoicePath }]
-    }).then(() => console.log('✅ Customer email sent'))
-      .catch(err => console.error('❌ Customer email failed:', err.message));
+      subject: `Rechnung #${orderData.invoiceNumber} – PECTO`,
+      html: emailHTML,
+      attachments: attachments(invoicePath, orderData.invoiceNumber)
+    });
 
-    const copyEmail = transporter.sendMail({
-      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      to: process.env.COPY_TO || 'rechnung@pecto.at',
-      subject: `Kopie: Rechnung #${orderData.invoiceNumber}`,
-      html: emailHtml,
-      attachments: [{ filename: `Rechnung_${orderData.invoiceNumber}.pdf`, path: invoicePath }]
-    }).then(() => console.log('✅ Copy email sent'))
-      .catch(err => console.error('❌ Copy email failed:', err.message));
+    // Send copy to your inbox
+    await transporter.sendMail({
+      from: `"PECTO" <${process.env.EMAIL_USER}>`,
+      to: 'rechnung@pecto.at',
+      subject: `Rechnung Kopie #${orderData.invoiceNumber}`,
+      html: emailHTML,
+      attachments: attachments(invoicePath, orderData.invoiceNumber)
+    });
 
-    await Promise.allSettled([customerEmail, copyEmail]);
-
-    res.status(200).json({ message: 'Invoice generated and emails sent', invoiceNumber: orderData.invoiceNumber });
+    res.json({ success: true, invoiceNumber: orderData.invoiceNumber });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to generate invoice or send emails', details: err.message });
+    console.error('❌ Fehler beim Senden der E-Mail:', err);
+    res.status(500).json({ error: 'Fehler beim Senden der E-Mail' });
   }
 });
 
-app.listen(port, '0.0.0.0', () => {
-  console.log(`🚀 Server läuft auf http://0.0.0.0:${port}`);
+// Start server
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(`✅ Server läuft auf Port ${PORT}`);
 });
-
-// Safety logs
-process.on('unhandledRejection', (r) => console.error('UnhandledRejection:', r));
-process.on('uncaughtException', (e) => console.error('UncaughtException:', e));
