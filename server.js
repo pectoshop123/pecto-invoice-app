@@ -5,30 +5,28 @@ const fs = require('fs');
 require('dotenv').config();
 
 const generateEmailHTML = require('./emailTemplate');
-const generateInvoicePDF = require('./generateInvoice');
+const generateInvoicePDF = require('./invoiceGenerator');
 
 const app = express();
 app.use(express.json());
 
-// --- Transporter
+// Nodemailer transporter
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT || 465),
-  secure: String(process.env.SMTP_PORT) === '465', // 465=true, 587/25=false
+  port: process.env.SMTP_PORT,
+  secure: false,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   }
 });
 
-// --- Attachments (logo + pdf)
+// Attachments: logo + PDF invoice
 const attachments = (invoicePath, invoiceNumber) => ([
   {
     filename: 'logo-email.png',
     path: path.join(__dirname, 'assets', 'logo-email.png'),
-    cid: 'pectoLogo@cid',            // must match <img src="cid:...">
-    contentType: 'image/png',
-    contentDisposition: 'inline'
+    cid: 'pectoLogo@cid' // same CID used in emailTemplate.js
   },
   {
     filename: `Rechnung_${invoiceNumber}.pdf`,
@@ -36,68 +34,42 @@ const attachments = (invoicePath, invoiceNumber) => ([
   }
 ]);
 
-// Simple YYYY-#### (German-ish style)
+// Generate invoice number
 const generateInvoiceNumber = () => {
-  const d = new Date();
-  const year = d.getFullYear();
-  // You can replace this with your persisted counter if you like
-  const seq = Math.floor(Math.random() * 9000) + 1000;
-  return `${year}-${String(seq).padStart(4,'0')}`;
+  const date = new Date();
+  return `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}-${Math.floor(Math.random() * 9000) + 1000}`;
 };
 
-// (optional) quick health route
-app.get('/health', (_, res) => res.json({ status: 'healthy' }));
-
-// Generate PDF + send email
+// API route: generate PDF + send email
 app.post('/generate-invoice-and-email', async (req, res) => {
   try {
     const order = req.body;
     const invoiceNumber = generateInvoiceNumber();
     order.invoiceNumber = invoiceNumber;
 
-    // Calculate totals if caller didn’t supply them
-    const subtotal = (order.items || []).reduce((s, i) => s + (i.total ?? (i.quantity * i.unitPrice)), 0);
-    const shipping = Number(order.shippingCost || 0);
-    const discount = Number(order.discountAmount || 0);
-    order.totals = {
-      subtotal,
-      shipping,
-      discount,
-      grandTotal: subtotal + shipping - discount
-    };
-
     // Generate PDF
-    const invoicesDir = path.join(__dirname, 'invoices');
-    if (!fs.existsSync(invoicesDir)) fs.mkdirSync(invoicesDir, { recursive: true });
-    const invoicePath = path.join(invoicesDir, `Rechnung_${invoiceNumber}.pdf`);
+    const invoicePath = path.join(__dirname, 'invoices', `Rechnung_${invoiceNumber}.pdf`);
     await generateInvoicePDF(order, invoicePath);
 
-    // Ensure logo exists (helps debugging)
-    const logoPath = path.join(__dirname, 'assets', 'logo-email.png');
-    if (!fs.existsSync(logoPath)) {
-      console.warn('⚠️  assets/logo-email.png not found. Logo will not render.');
-    }
-
-    // Generate HTML
+    // Generate HTML email
     const emailHTML = generateEmailHTML(order);
 
-    // Send to customer + copy to accounting
+    // Send email
     await transporter.sendMail({
       from: `"PECTO" <${process.env.EMAIL_USER}>`,
       to: order.customer.email,
-      bcc: 'rechnung@pecto.at',
-      subject: `Bestellbestätigung & Rechnung ${invoiceNumber}`,
+      cc: process.env.EMAIL_USER, // Copy to yourself
+      subject: `Ihre Rechnung ${invoiceNumber}`,
       html: emailHTML,
       attachments: attachments(invoicePath, invoiceNumber)
     });
 
     res.json({ success: true, message: 'Rechnung gesendet', invoiceNumber });
-  } catch (err) {
-    console.error('Fehler beim Senden der Rechnung:', err);
+  } catch (error) {
+    console.error('Fehler beim Senden der Rechnung:', error);
     res.status(500).json({ success: false, error: 'E-Mail konnte nicht gesendet werden.' });
   }
 });
 
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server läuft auf Port ${PORT}`));
-
